@@ -1,0 +1,25 @@
+.authorization{
+  width: 500px;
+  height: fit-content;
+  form{
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    margin-top: 25px;
+    input{ 
+      width: 100%;
+    all: unset;
+      border-bottom: 1px solid #1e1e1e;
+      padding: 13px 20px;
+      // width: 278px;
+    
+  }
+  button{
+    color: #1e1e1e; 
+    font-weight: 600;
+  
+  }
+  }
+
+}
+
