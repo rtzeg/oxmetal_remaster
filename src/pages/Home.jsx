@@ -1,289 +1,342 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import ProductCart from '../components/ProductCart';
-import { useSelector } from 'react-redux';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import 'swiper/css';
-import 'swiper/css/free-mode';
-import 'swiper/css/pagination';
-import 'swiper/css/navigation';
-import { FreeMode, Pagination, Navigation } from 'swiper/modules';
-import { Link, useNavigate } from 'react-router-dom';
-import { Modal } from '../contexts/Modal';
-import PhoneInput from 'react-phone-input-2';
-import axios from 'axios';
-import { sendmessage } from '../../utils/sendTgBot';
-import { checkCookie, scrollToElement } from '../../utils/functions';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import ProductCart from "../components/ProductCart";
+import { useSelector } from "react-redux";
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import "swiper/css/free-mode";
+import "swiper/css/pagination";
+import "swiper/css/navigation";
+import { FreeMode, Pagination, Navigation } from "swiper/modules";
+import { Link } from "react-router-dom";
+import PhoneInput from "react-phone-input-2";
+
+import { sendmessage } from "../../utils/sendTgBot";
+import { checkCookie, scrollToElement } from "../../utils/functions";
 
 const Home = () => {
   const goods = useSelector((state) => state.goods.data);
-  const newArr = Object.values(goods);
 
-  const { OpenModal, setOpenModal } = useContext(Modal);
-  const [SelectArr, setSelectArr] = useState([]);
-  const [SelectIdx, setSelectIdx] = useState(0);
-  const [FormData, setFormData] = useState({});
-  const message = useRef(null);
-  const message2 = useRef(null);
-  const navigate = useNavigate();
-  const [CheckForm, setCheckForm] = useState(false);
-  const [CheckCokkie, setCheckCokkie] = useState(false);
-  useEffect(() => {
-    let View = [];
-    function create_category(arr, key, new_arr) {
-      for (let item of arr) {
-        new_arr.push(item[key]);
-      }
+  // SAFE goods -> array
+  const newArr = useMemo(() => {
+    if (!goods) return [];
+    if (Array.isArray(goods)) return goods.filter(Boolean);
+    if (typeof goods === "object") return Object.values(goods).filter(Boolean);
+    return [];
+  }, [goods]);
+
+  // стабильный цвет вместо Math.random()
+  const getStableColorIdx = useCallback((product, fallbackIdx = 0) => {
+    const len = Array.isArray(product?.color) ? product.color.length : 0;
+    if (!len) return 0;
+
+    const seed = String(product?.id ?? product?._id ?? product?.name ?? fallbackIdx);
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
     }
-    create_category(newArr, 'view', View);
-   
-    View = [...new Set(View)];
-    let ProductsArr = [];
+    return hash % len;
+  }, []);
 
-    function getSelects() {
-      for (let view of View) {
-        let fillSelectMater = newArr.filter(
-          (item) => item.view.toLowerCase() === view.toLowerCase(),
-        );
-        let materObj = [];
-        for (let mater of fillSelectMater) {
-          materObj.push({
-            icon: mater.materialImg,
-            name: mater.material,
-          });
-        }
-        const table = {};
-        const res = materObj.filter(({ name }) => !table[name] && (table[name] = 1));
-        ProductsArr.push({
-          type: view,
-          img: fillSelectMater[0].viewImg,
-          arr: res,
+  // Категории/материалы (SelectArr)
+  const selectArr = useMemo(() => {
+    const byView = new Map();
+
+    for (const item of newArr) {
+      if (!item) continue;
+
+      const view = String(item.view ?? "").trim();
+      if (!view) continue;
+
+      const key = view.toLowerCase();
+      const viewImg = String(item.viewImg ?? "").trim();
+
+      if (!byView.has(key)) {
+        byView.set(key, { type: view, img: viewImg || "", arr: [] });
+      }
+
+      const entry = byView.get(key);
+
+      if (!entry.img && viewImg) entry.img = viewImg;
+
+      const materialName = String(item.material ?? "").trim();
+      if (!materialName) continue;
+
+      const exists = entry.arr.some(
+        (m) => String(m.name ?? "").trim().toLowerCase() === materialName.toLowerCase()
+      );
+
+      if (!exists) {
+        entry.arr.push({
+          icon: String(item.materialImg ?? "").trim(),
+          name: item.material,
         });
       }
-      ProductsArr = [...new Set(ProductsArr)];
-      
-    
-      
-      const filtredArr = ProductsArr.filter((item)=> item.img !== '') 
-        setSelectArr(filtredArr);
-     
-       
-        
-      
-      
     }
 
-    getSelects();
+    return Array.from(byView.values()).filter((x) => x.img !== "");
+  }, [newArr]);
+
+  const [selectIdx, setSelectIdx] = useState(0);
+  useEffect(() => {
+    if (selectIdx >= selectArr.length) setSelectIdx(0);
+  }, [selectIdx, selectArr.length]);
+
+  useEffect(() => {
+    scrollToElement("main_page_preview");
+  }, []);
+
+  // numbers animation (без scroll listener)
+  const hasAnimated = useRef(false);
+
+  const animateNumber = useCallback((to, elId, duration = 1200) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduceMotion) {
+      el.textContent = String(to);
+      return;
+    }
+
+    const start = performance.now();
+    const from = 0;
+
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      const value = Math.floor(from + (to - from) * p);
+      el.textContent = String(value);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
   }, []);
 
   useEffect(() => {
-    scrollToElement('main_page_preview');
+    const first = document.querySelector(".numbers");
+    if (!first) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        if (hasAnimated.current) return;
+
+        hasAnimated.current = true;
+        animateNumber(1500, "chislo1", 900);
+        animateNumber(27147, "chislo2", 1200);
+        animateNumber(50, "chislo3", 900);
+        animateNumber(20, "chislo4", 900);
+        obs.disconnect();
+      },
+      { threshold: 0.35 }
+    );
+
+    obs.observe(first);
+    return () => obs.disconnect();
+  }, [animateNumber]);
+
+  // Form
+  const message = useRef(null);
+  const message2 = useRef(null);
+  const [phone, setPhone] = useState("");
+  const [checkForm, setCheckForm] = useState(false);
+  const [checkCookieSent, setCheckCookieSent] = useState(false);
+  const submitTimer = useRef(null);
+
+  const isValidForm = useMemo(() => {
+    const name = String(message.current?.value ?? "").trim();
+    const formatted = String(message2.current?.state?.formattedNumber ?? "").trim();
+    const digits = formatted.replace(/\D/g, "");
+    return name.length > 0 && digits.length > 5;
+  }, [phone, checkForm]);
+
+  const onSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+
+      const already = !!checkCookie("ChangeForm");
+      setCheckCookieSent(already);
+      setCheckForm(true);
+
+      if (submitTimer.current) clearTimeout(submitTimer.current);
+
+      if (!isValidForm || already) {
+        submitTimer.current = setTimeout(() => setCheckForm(false), 5000);
+        return;
+      }
+
+      sendmessage(e, message, message2);
+      submitTimer.current = setTimeout(() => setCheckForm(false), 5000);
+    },
+    [isValidForm]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (submitTimer.current) clearTimeout(submitTimer.current);
+    };
   }, []);
 
-  //нарастаюшие цифры
-  ///////////////////////////////////////////////////////////////////////////////////
-  let time = 2000;
-  let s = false;
-  function numbers(num, el, step) {
-    if (s === false) {
-      let n = document.querySelector(`#${el}`);
-      let chislo = 0;
-      let timing = Math.floor(time / (num / step));
-      let interval = setInterval(() => {
-        chislo = chislo + step;
-        if (chislo >= num) {
-          clearInterval(interval);
-          if (chislo > num) {
-            chislo = num;
-          }
-        }
-        n.textContent = chislo;
-      }, timing);
-    }
-  }
-  function isElementInViewport(element) {
-    var rect = element.getBoundingClientRect();
-    return (
-      rect.top >= 0 &&
-      rect.left >= 0 &&
-      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-  }
+  // Partners
+  const partners = useMemo(
+    () => [
+      { src: "/slider/slide1.png", alt: "МК" },
+      { src: "/slider/slide2.png", alt: "Металл Профиль" },
+      { src: "/slider/slide3.webp", alt: "Технониколь" },
+      { src: "/slider/slide4.png", alt: "ArcelorMittal" },
+      { src: "/slider/slide5.svg", alt: "Северсталь" },
+    ],
+    []
+  );
+  const marquee = useMemo(() => [...partners, ...partners], [partners]);
 
-  function handleScroll() {
-    var animatedElements = document.querySelectorAll('.numbers');
-    animatedElements.forEach(function (element) {
-      if (isElementInViewport(element)) {
-        numbers(1500, 'chislo1', 30);
-        numbers(27147, 'chislo2', 140);
-        numbers(50, 'chislo3', 1);
-        numbers(20, 'chislo4', 1);
-        s = true;
-      }
-    });
-  }
-  window.addEventListener('scroll', handleScroll);
-  console.log(SelectArr)
-  ///////////////////////////////////////////////////////////////////////////////////
+  const currentSelect = selectArr[selectIdx];
+
   return (
     <>
-      {/* <div className="flex items-center justify-between ">
-        <div className="w-[49%] ">
-          <img src="/fonOxMetal.png" className="w-[100%]" alt="" />
-        </div>
+      {/* ===== HERO / MAIN PREVIEW (нормальная верстка под 1920 + fonOxMetal.png) ===== */}
+      <section id="main_page_preview" className="relative isolate w-full overflow-hidden">
+        {/* BG */}
+        <img
+          src="/fonOxMetal.png"
+          alt=""
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-left"
+          loading="eager"
+          fetchPriority="high"
+        />
 
-        <div className="max-w-[49%] pr-5">
-          <img
-            src="/logoTitle.svg"
-            className="w-[244px] mb-[30px] mb:w-[80%] mb:mb-5"
-            alt=""
-          />
-          <h1
-            className="text-[68px] text-[#1e1e1e] font-[900] leading-[7 5px] 
-                mb:text-[20px] mb:leading-[35px] md:text-[39px] md:leading-[75px]
-                lg:text-[45px] lg:leading-[75px] exl:text-[68px] exl:leading-[75px] 
-                "
-          >
-            СТРОЙ ЖИЗНЬ С КАЧЕСТВОМ
-          </h1>
-          <p className="text-[32px] text-[#6A6A6A] font-[400] leading-[40px] lg:hidden ">
-            Ведущая компания в Узбекистане по производству строительных
-            компонентов.
-          </p>
-        </div>
-      </div> */}
-      <div id="main_page_preview">
-        <div className="prewiew_mask" data-aos="fade-right"></div>
-        <div className="prewiew_left_side" data-aos="fade-left">
-          <img src="/icons/main_Page_logo.png" className="main_page_logo" alt="" />
-          <h1>СТРОЙ ЖИЗНЬ С КАЧЕСТВОМ</h1>
+        {/* overlay: слева почти прозрачный, справа белый */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/0 via-white/10 to-white/95 lg:to-white/98" />
 
-          <p>Ведущая компания в Узбекистане по поставкам кровельных и фасадных систем.</p>
+        {/* content */}
+        <div className="mx-auto flex min-h-[520px] items-center justify-center px-4 sm:min-h-[580px] sm:px-6 lg:min-h-[640px] lg:justify-end lg:px-8">
+          <div className="w-full max-w-xl rounded-3xl bg-white/85 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.10)] backdrop-blur-md lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-0">
+            <div className="flex items-center gap-3 lg:justify-start justify-center">
+              <img src="/logo.svg" alt="Oxmetal" className="h-7 w-auto" />
+            </div>
+
+            <h1 className="mt-5 text-center text-4xl font-black leading-[1.05] text-neutral-900 sm:text-5xl lg:text-left">
+              СТРОЙ ЖИЗНЬ С{" "}
+              <span className="text-neutral-900">КАЧЕСТВОМ</span>
+            </h1>
+
+            <p className="mt-4 text-center text-base leading-relaxed text-neutral-700 sm:text-lg lg:text-left">
+              Ведущая компания в Узбекистане по поставкам кровельных и фасадных систем.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <Link
+                to="/catalog"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-[#B7D300] px-8 py-4 text-sm font-black text-black transition hover:brightness-95 sm:w-[260px]"
+              >
+                Открыть каталог
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => scrollToElement("AnyQuestionsOrderConsultation")}
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-black/10 bg-white px-8 py-4 text-sm font-black text-neutral-900 shadow-sm transition hover:bg-neutral-50 sm:w-[260px]"
+              >
+                Получить консультацию
+              </button>
+            </div>
+
+            <p className="mt-4 text-center text-xs text-neutral-600 lg:text-left">
+              Ответим в рабочее время. Без “перезвоним через неделю”.
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
+
+
+      {/* Каталог + слайдер */}
       <div id="GoTOCatalog" className="flex w-full h-[450px] sm:h-fit justify-between">
-        <div className=" w-[30%] sm:w-full h-full flex flex-col gap-4 items-center justify-center">
+        <div className="w-[30%] sm:w-full h-full flex flex-col gap-4 items-center justify-center">
           <p className="leading-[120%] lg:text-2xl font-black text-center text-[53px] w-fit">
             ЧТО ВЫ <wbr /> ИЩИТЕ?
           </p>
-          <Link to={'/catalog'}>
+          <Link to="/catalog">
             <div className="flex py-[15px] w-fit text-base font-bold button px-[60px]">КАТАЛОГ</div>
           </Link>
         </div>
-        <div className="flex items-start gap-5 w-[60%] sm:w-full    py-5  h-full">
+
+        <div className="flex items-start gap-5 w-[60%] sm:w-full py-5 h-full">
           {newArr.length > 0 ? (
             <Swiper
-              style={
-                {
-                  // "--swiper-navigation-color": "red !important",
-                  // "--swiper-pagination-color": "#00000",
-                }
-              }
               breakpoints={{
-                0: {
-                  slidesPerView: 1,
-                },
-                400: {
-                  slidesPerView: 1,
-                },
-                639: {
-                  slidesPerView: 1.5,
-                },
-                950: {
-                  slidesPerView: 1.5,
-                },
-                1000: {
-                  slidesPerView: 2.5,
-                },
-                1250: {
-                  slidesPerView: 3,
-                },
-                1500: {
-                  slidesPerView: 3,
-                },
-                1700: {
-                  slidesPerView: 3,
-                },
-                2000: {
-                  slidesPerView: 4,
-                },
-                2500: {
-                  slidesPerView: 4.5,
-                },
+                0: { slidesPerView: 1 },
+                400: { slidesPerView: 1 },
+                639: { slidesPerView: 1.5 },
+                950: { slidesPerView: 1.5 },
+                1000: { slidesPerView: 2.5 },
+                1250: { slidesPerView: 3 },
+                1500: { slidesPerView: 3 },
+                1700: { slidesPerView: 3 },
+                2000: { slidesPerView: 4 },
+                2500: { slidesPerView: 4.5 },
               }}
               slidesPerView={2.9}
               spaceBetween={30}
-              freeMode={true}
-              navigation={true}
+              freeMode
+              navigation
               modules={[FreeMode, Navigation, Pagination]}
-              className="h-full overflow-hidden w-fit">
+              className="h-full overflow-hidden w-fit"
+            >
               {newArr.map((item, idx) => (
-                <SwiperSlide key={idx}>
-                  {' '}
-                  <ProductCart Product={item} idx={Math.floor(Math.random() * item.color.length)} />
+                <SwiperSlide key={item?.id ?? item?._id ?? `${item?.name ?? "item"}-${idx}`}>
+                  <ProductCart Product={item} idx={getStableColorIdx(item, idx)} />
                 </SwiperSlide>
               ))}
             </Swiper>
           ) : null}
         </div>
       </div>
-      <div id="ProductsMain" className="mt-10 ">
+
+      {/* Продукция */}
+      <div id="ProductsMain" className="mt-10">
         <h1>ПРОДУКЦИЯ ОXMETAL</h1>
 
         <div className="ProductsCreate">
           <div className="ProductsCreateSelects">
             <div className="MainSelectsCreate">
-              {SelectArr.length > 0
-                ? SelectArr.map((item, idx) => (
-                    <div
-                      className="MainSelects"
-                      onClick={() => {
-                        setSelectIdx(idx);
-                      }}
-                      key={item.type + idx}>
-                      <div className="SelectsImg">
-                        <img
-                          className={
-                            SelectIdx == idx ? 'SelectsImgBg SelectsImgBgActive ' : 'SelectsImgBg  '
-                          }
-                          src="/icons/Star 7.svg"
-                          alt=""
-                        />
-                        <img className="SelectsImgIcon" src={item.img} alt="" />
-                      </div>
-                      <p>{item.type}</p>
+              {selectArr.length > 0
+                ? selectArr.map((item, idx) => (
+                  <div className="MainSelects" onClick={() => setSelectIdx(idx)} key={item.type + idx}>
+                    <div className="SelectsImg">
+                      <img
+                        className={selectIdx === idx ? "SelectsImgBg SelectsImgBgActive" : "SelectsImgBg"}
+                        src="/icons/Star 7.svg"
+                        alt=""
+                      />
+                      <img className="SelectsImgIcon" src={item.img} alt="" />
                     </div>
-                  ))
+                    <p>{item.type}</p>
+                  </div>
+                ))
                 : null}
             </div>
           </div>
 
           <div className="ProductsCreateOptions">
-            {SelectArr.length > 0
-              ? SelectArr[SelectIdx].arr.map((item, idx) => (
-                  <Link
-                    to={'/catalog'}
-                    onClick={() => {
-                      localStorage.setItem('fillGood', item.name);
-                    }}
-                    key={item.name + idx}>
-                    <div className="ProductsCreateOptionsElem ">
-                      <img src={item.icon} alt="" />
-                      <p>{item.name}</p>
-                    </div>
-                  </Link>
-                ))
+            {currentSelect
+              ? currentSelect.arr.map((item, idx) => (
+                <Link
+                  to="/catalog"
+                  onClick={() => localStorage.setItem("fillGood", item.name)}
+                  key={item.name + idx}
+                >
+                  <div className="ProductsCreateOptionsElem">
+                    <img src={item.icon} alt="" />
+                    <p>{item.name}</p>
+                  </div>
+                </Link>
+              ))
               : null}
-
-            {/* <div className="ProductsCreateOptionsElem">
-              <img src="/icons/free-icon-roof-63505241.svg" alt="" />
-              <p>Крепеж</p>
-            </div> */}
           </div>
         </div>
       </div>
 
+      {/* Как мы работаем */}
       <div id="about_company">
         <h1 className="logo_about">КАК МЫ РАБОТАЕМ</h1>
 
@@ -295,7 +348,7 @@ const Home = () => {
               товаров
             </p>
           </div>
-          {/* <div className="border border1"></div> */}
+
           <div className="numbers">
             <span id="chislo2">0</span>
             <p className="a">
@@ -303,13 +356,11 @@ const Home = () => {
               метров
             </p>
           </div>
-          {/* <div className="border border2"></div> */}
 
           <div className="numbers">
             <span id="chislo3">0</span>
             <p className="a">Контрагентов</p>
           </div>
-          {/* <div className="border border3"></div> */}
 
           <div className="numbers">
             <span id="chislo4">0</span>
@@ -319,25 +370,28 @@ const Home = () => {
             </p>
           </div>
         </div>
+
         <div className="about_company_pros">
           <div className="about_company_pros_top">
             <div className="pros_item" data-aos="fade-down" data-aos-duration="1000">
               <img src="./img/aboutImg2.svg" width="73px" alt="" />
               <h1>Быстрая доставка</h1>
               <p>
-                В крупных городах работают филиалы компании. Некоторые заказы можно забрать напрямую
-                со склада или мы доставим на терминал ТК.
+                В крупных городах работают филиалы компании. Некоторые заказы можно забрать напрямую со
+                склада или мы доставим на терминал ТК.
               </p>
             </div>
+
             <div className="pros_item" data-aos="fade-down" data-aos-duration="1000">
               <img src="./img/aboutImg1.svg" width="73px" alt="" />
               <h1>Выгодное сотрудничество</h1>
               <p>
-                Мы нацелены на долгое сотрудничество с клиентами и партнерами, поэтому создаем
-                максимально комфортные условия для совместной работы.
+                Мы нацелены на долгое сотрудничество с клиентами и партнерами, поэтому создаем максимально
+                комфортные условия для совместной работы.
               </p>
             </div>
           </div>
+
           <div className="about_company_pros_bottom">
             <div className="pros_item" data-aos="fade-up" data-aos-duration="1000">
               <img src="/icons/aboutImg4.svg" width="73px" alt="" />
@@ -347,100 +401,64 @@ const Home = () => {
                 постоянных партнеров присутствует скидка на дальнейшие заказы.
               </p>
             </div>
+
             <div className="pros_item" data-aos="fade-up" data-aos-duration="1000">
               <img src="./img/aboutImg3.svg" width="73px" alt="" />
               <h1>Высокое качество</h1>
               <p>
-                Ведущая компания по решениям фасадных и кровельных систем. Офицальная гарантия на
-                каждую продукцую. По современным Российским технологияи и ГОСТ-стандартам
+                Ведущая компания по решениям фасадных и кровельных систем. Офицальная гарантия на каждую
+                продукцую. По современным Российским технологияи и ГОСТ-стандартам
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Партнёры (marquee) */}
       <h1 className="logo_about">Наши партнеры</h1>
-      <div
-        id="slider"
-        className="w-[90%] mx-auto relative  my-5 border-[#C5E500] border-solid overflow-hidden border-[2px] h-[120px] ">
-        <div className="absolute flex items-center justify-between h-full gap-10 p-5 w-fit ">
-          <div className="flex items-center gap-10 sliderWraper">
-            <div className="w-fit">
-              <img src="/slider/slide1.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide2.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide3.webp" className=" max-w-[150px] w-[100px] h-hull" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide4.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide5.svg" className=" max-w-[150px] " alt="" />
-            </div>
-          </div>
+      <section className="w-[90%] mx-auto my-5">
+        <div className="rounded-2xl border border-black/10 bg-white shadow-sm overflow-hidden relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-white to-transparent z-10" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-white to-transparent z-10" />
 
-          <div className="flex items-center gap-10 sliderWraper">
-            <div className="w-fit">
-              <img src="/slider/slide1.png" className=" max-w-[150px]" alt="" />
+          <div className="group overflow-hidden py-6">
+            <div
+              className="flex items-center gap-7 w-max px-6"
+              style={{ animation: "oxMarquee 22s linear infinite" }}
+            >
+              {marquee.map((p, idx) => (
+                <div
+                  key={`${p.alt}-${idx}`}
+                  className="flex items-center justify-center h-[72px] w-[180px] rounded-2xl border border-black/10 bg-white shadow-[0_6px_20px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-[2px] hover:border-black/20 hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)]"
+                >
+                  <img
+                    src={p.src}
+                    alt={p.alt}
+                    loading="lazy"
+                    className="max-h-[38px] w-auto opacity-70 grayscale transition-all duration-200 hover:opacity-100 hover:grayscale-0"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="w-fit">
-              <img src="/slider/slide2.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide3.webp" className=" max-w-[150px] w-[100px] h-hull" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide4.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide5.svg" className=" max-w-[150px] " alt="" />
-            </div>
-          </div>
 
-          <div className="flex items-center gap-10 sliderWraper">
-            <div className="w-fit">
-              <img src="/slider/slide1.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide2.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide3.webp" className=" max-w-[150px] w-[100px] h-hull" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide4.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide5.svg" className=" max-w-[150px] " alt="" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-10 sliderWraper">
-            <div className="w-fit">
-              <img src="/slider/slide1.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide2.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide3.webp" className=" max-w-[150px] w-[100px] h-hull" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide4.png" className=" max-w-[150px]" alt="" />
-            </div>
-            <div className="w-fit">
-              <img src="/slider/slide5.svg" className=" max-w-[150px] " alt="" />
-            </div>
+            <style>{`
+              @keyframes oxMarquee { 
+                from { transform: translateX(0); } 
+                to { transform: translateX(-50%); } 
+              }
+              .group:hover > div { animation-play-state: paused !important; }
+            `}</style>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* FAQ + консультация */}
       <div id="AnyQuestionsOrderConsultation">
         <div className="AnyQuestionsMain">
           <div className="AnyQuestions">
             <h1 className="AnyQuestionsLogo">Остались вопросы?</h1>
           </div>
+
           <div id="AnyQuestionsSelect">
             <div className="acor-container">
               <input type="checkbox" name="chacor" id="chacor1" />
@@ -448,17 +466,15 @@ const Home = () => {
               <div className="acor-body">
                 <p>
                   У нас есть два способа подсчета стоимости конструкции.
-                  <br />
-                  <br />
+                  <br /><br />
                   Во-первых, у нас есть каталог, в котором представлены наши товары с указанием цен.
-                  Вы можете ознакомиться с каталогом и выбрать необходимые материалы, а затем
-                  умножить их стоимость на нужное количество.
-                  <br />
-                  <br />
-                  Во-вторых, на нашем сайте доступен калькулятор цен, который позволяет вам
-                  самостоятельно рассчитать стоимость товара. Вы можете выбрать нужные параметры и
-                  указать необходимые размеры или количество, и калькулятор автоматически вычислит
-                  общую стоимость конструкции на основе текущих цен.
+                  Вы можете ознакомиться с каталогом и выбрать необходимые материалы, а затем умножить их
+                  стоимость на нужное количество.
+                  <br /><br />
+                  Во-вторых, на нашем сайте доступен калькулятор цен, который позволяет вам самостоятельно
+                  рассчитать стоимость товара. Вы можете выбрать нужные параметры и указать необходимые
+                  размеры или количество, и калькулятор автоматически вычислит общую стоимость конструкции
+                  на основе текущих цен.
                 </p>
               </div>
 
@@ -469,38 +485,21 @@ const Home = () => {
               <div className="acor-body">
                 <p>
                   Да, у нас есть возможность заказать индивидуальные товары по вашим требованиям. Мы
-                  предлагаем широкий выбор материалов с разной толщиной, и вы можете выбрать
-                  наиболее подходящую для ваших потребностей.
-                  <br />
-                  <br />
+                  предлагаем широкий выбор материалов с разной толщиной, и вы можете выбрать наиболее
+                  подходящую для ваших потребностей.
+                  <br /><br />
                   Кроме того, вы также можете указать желаемую цену для этих индивидуальных товаров.
-                  Наша команда свяжется с вами для обсуждения подробностей и предоставит вам точную
-                  информацию о возможностях и ценах для вашего заказа.
+                  Наша команда свяжется с вами для обсуждения подробностей.
                 </p>
               </div>
-              {/* 
-                <!-- <input type="checkbox" name="chacor" id="chacor3" />
-              <label for="chacor3">Rock</label>
-              <div class="acor-body">
-                  <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Officia nostrum qui consequuntur ullam quisquam error harum rerum, minus sunt nobis ut eveniet totam assumenda. Veritatis harum molestias laborum eligendi repellat?</p>
-              </div> --> */}
 
-              {/* <!-- <img src="/icons/134224_add_plus_new_icon.svg" alt="" srcset=""> --> */}
               <input type="checkbox" name="chacor" id="chacor4" />
-              <label className="" htmlFor="chacor4">
-                Как с нами связаться?
-              </label>
+              <label htmlFor="chacor4">Как с нами связаться?</label>
               <div className="acor-body">
                 <p>
-                  Наша компания, специализирующаяся на тонколистовой отрасли, предлагает бесплатную
-                  консультацию для всех клиентов. <br />
-                  <br />
-                  Обратившись к нам, вы получите профессиональные рекомендации и советы по выбору и
-                  использованию металлпрофиля для ваших проектов.
-                  <br />
-                  <br />
-                  Не упустите возможность получить бесплатную консультацию от опытных экспертов в
-                  области металлпрофиля и достигните успеха в ваших строительных задачах.
+                  Наша компания предлагает бесплатную консультацию для всех клиентов.
+                  <br /><br />
+                  Обратившись к нам, вы получите рекомендации по выбору и использованию металлпрофиля для ваших проектов.
                 </p>
               </div>
             </div>
@@ -513,19 +512,7 @@ const Home = () => {
           </div>
 
           <div className="OrderConsultationForm">
-            <form
-              onSubmit={(e) => {
-                if (checkCookie('ChangeForm')) {
-                  setCheckCokkie(true);
-                } else {
-                  setCheckCokkie(false);
-                }
-                sendmessage(e, message, message2);
-                setCheckForm(true);
-                setTimeout(() => {
-                  setCheckForm(false);
-                }, 5000);
-              }}>
+            <form onSubmit={onSubmit}>
               <label className="inputs">
                 <input
                   ref={message}
@@ -539,30 +526,25 @@ const Home = () => {
                   <PhoneInput
                     ref={message2}
                     className="ConsultationInpPhone"
-                    country={'uz'} // Укажите страну по умолчанию (например, 'us' для США)
-                    value={''}
+                    country="uz"
+                    value={phone}
+                    onChange={(val) => setPhone(val)}
                   />
                 </div>
               </label>
-              {CheckForm ? (
+
+              {checkForm ? (
                 <>
-                  {message.current.value.length > 0 &&
-                  message2.current.state.formattedNumber.length > 5 ? (
+                  {isValidForm ? (
                     <>
-                      {CheckCokkie ? (
-                        <p className="my-5 opacity-50 ">
-                          Вы уже отправляли заявку повторите позже
-                        </p>
+                      {checkCookieSent ? (
+                        <p className="my-5 opacity-50">Вы уже отправляли заявку повторите позже</p>
                       ) : (
-                        <p className="my-5 opacity-50 ">
-                          Заявка отправлена . Мы свяжемся с вами в течении 2х рабочих дней
-                        </p>
+                        <p className="my-5 opacity-50">Заявка отправлена. Мы свяжемся с вами в течение 2х рабочих дней</p>
                       )}
                     </>
                   ) : (
-                    <>
-                      <p className="my-5 opacity-50 ">Заполните поля</p>
-                    </>
+                    <p className="my-5 opacity-50">Заполните поля</p>
                   )}
                 </>
               ) : null}
@@ -570,8 +552,7 @@ const Home = () => {
               <label className="FormBtn">
                 <button id="ConsultationSubmit">ОТПРАВИТЬ</button>
                 <span>
-                  Нажимая кнопку «Отправить», я даю своё согласие на обработку и распространение
-                  персональных данных.
+                  Нажимая кнопку «Отправить», я даю своё согласие на обработку и распространение персональных данных.
                 </span>
               </label>
             </form>
