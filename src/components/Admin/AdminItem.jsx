@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
 export default function AdminItem({ arr, idx, arr2 }) {
-  const { material, view, Guarantee, price, color, tipes, coating, sizes, key } = arr;
+  const { material, view, Guarantee, price, color, tipes, coating, sizes, key, category, profile } = arr;
   const navigate = useNavigate();
   const onDelete = async (key) => {
     try {
@@ -49,8 +49,18 @@ export default function AdminItem({ arr, idx, arr2 }) {
           {price === 0 ? 'Цена по запросу' : price.toLocaleString('ru-RU')} сум/м<sup>2</sup>
         </span>
       </p>
+      {category && (
+        <p>
+          Категория: <span>{category}</span>
+        </p>
+      )}
+      {profile && (
+        <p>
+          Профиль: <span>{profile}</span>
+        </p>
+      )}
 
-      <div className="flex items-center justify-between">
+      <div className={`${styles.adminItemActions} flex items-center justify-between`}>
         <Link to={`/admin/control/add-item/${key}/${arr2}`}>
           <button className="flex py-[10px] mr-[15px] w-fit text-[11px] font-bold button px-[30px]">
             ИЗМЕНИТЬ

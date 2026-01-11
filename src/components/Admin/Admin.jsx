@@ -35,9 +35,10 @@ export default function Admin() {
   }
   return (
     <section className={styles.admin}>
-      <div className="top-0 flex items-center justify-between h-[80px] w-full bg-white z-[9997] border-b-2 border-[#DBFF00] px-5">
+      <div
+        className={`${styles.adminHeader} top-0 flex items-center justify-between h-[80px] w-full bg-white z-[9997] border-b-2 border-[#DBFF00] px-5`}>
         <img onClick={navigateHome} src="../logo.svg" alt="logo" />
-        <div className="button ml-[50%] translate-x-[-50%] w-[150px] h-[70px] flex items-center justify-center">
+        <div className={`${styles.adminHeaderButton} button w-[150px] h-[70px] flex items-center justify-center`}>
           <Link to="/admin/control/add-item">
             <button>Добавить</button>
           </Link>

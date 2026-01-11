@@ -60,6 +60,9 @@ export default function AddItem() {
     material: '',
     materialImg: '',
     name: '',
+    category: '',
+    profile: '',
+    thickness: '',
     price: Number,
     sizes: '',
     tipes: '',
@@ -83,6 +86,9 @@ export default function AddItem() {
         blueprint: product[0]?.blueprint,
         materialImg: product[0]?.materialImg,
         //   name: product[0]?.name,
+        category: product[0]?.category,
+        profile: product[0]?.profile,
+        thickness: product[0]?.thickness,
         sizes: product[0]?.sizes,
         tipes: product[0]?.tipes,
         view: product[0]?.view,
@@ -136,6 +142,18 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   // onChange для data.Guarantee
@@ -354,7 +372,7 @@ export default function AddItem() {
         {/* добавить название */}
 
         {/* добавить фото */}
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onFocus}>Фото чертежа</button>
           </div>
@@ -445,7 +463,7 @@ export default function AddItem() {
           setIsCoatingModal={setIsCoatingModal}
         />
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onIconFocus}>Фото вида</button>
           </div>
@@ -454,7 +472,7 @@ export default function AddItem() {
           {/* <img src="/icons/profIcon.svg" alt="" /> */}
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* материал */}
           <Input
             placeholder="Материал"
@@ -472,7 +490,7 @@ export default function AddItem() {
             width="40%"
           />
         </div>
-        <div className="flex justify-between items-center">
+        <div className={`${styles.formRow} flex justify-between items-center`}>
           {' '}
           {/* цена */}
           <Input
@@ -492,7 +510,7 @@ export default function AddItem() {
             type="number"
           />
         </div>
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* размер */}
 
           <Input
@@ -513,7 +531,7 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           <Input
             placeholder="Имя (не обязательно поле)"
             onChange={handleNameChange}
@@ -530,7 +548,35 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Категория"
+            value={data.category}
+            onChange={handleCategoryChange}
+            type="text"
+            width="40%"
+          />
+
+          <Input
+            width="40%"
+            value={data.profile}
+            onChange={handleProfileChange}
+            placeholder="Профиль"
+            type="text"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Толщина/модель"
+            value={data.thickness}
+            onChange={handleThicknessChange}
+            type="text"
+            width="40%"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onMaterialFocus}>иконка материала</button>
           </div>
