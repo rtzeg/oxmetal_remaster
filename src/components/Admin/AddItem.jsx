@@ -153,6 +153,30 @@ export default function AddItem() {
     setData({ ...data, thickness: event.target.value });
   };
 
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
   // onChange для data.Guarantee
   const handleGuaranteeChange = (event) => {
     const value = event.target.value.trim() !== '' ? parseFloat(event.target.value) : null;
