@@ -50,7 +50,7 @@ export default function AdminItem({ arr, idx, arr2 }) {
         </span>
       </p>
 
-      <div className="flex items-center justify-between">
+      <div className={`${styles.adminItemActions} flex items-center justify-between`}>
         <Link to={`/admin/control/add-item/${key}/${arr2}`}>
           <button className="flex py-[10px] mr-[15px] w-fit text-[11px] font-bold button px-[30px]">
             ИЗМЕНИТЬ

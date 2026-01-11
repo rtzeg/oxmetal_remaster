@@ -1,11 +1,16 @@
+import styles from './Admin.module.scss';
+
 export default function Input({ type, placeholder, width, ...props }) {
   const customStyle = {
-    width: width,
-    borderBottom: '1px solid black',
-    fontSize: '20px',
-    paddingTop: '16px',
-    outline: 'none',
-    marginTop: '15px',
+    '--input-width': width,
   };
-  return <input {...props} style={customStyle} type={type} placeholder={placeholder} />;
+  return (
+    <input
+      {...props}
+      className={styles.adminInput}
+      style={customStyle}
+      type={type}
+      placeholder={placeholder}
+    />
+  );
 }
