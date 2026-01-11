@@ -2,10 +2,7 @@ import React from 'react';
 import styles from './Admin.module.scss';
 
 
-import { ref, set, push, update } from 'firebase/database';
-import { db } from '../../../firebase';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchColors } from '../../features/colorsSlice';
+import { apiClient } from '../../utils/api';
 
 export default function ColorModal({ addNewColorModal, setAddNewColorModal, colors }) {
   // const dispatch = useDispatch();
@@ -29,10 +26,8 @@ export default function ColorModal({ addNewColorModal, setAddNewColorModal, colo
     if (filtredColor !== undefined) {
       alert('Такой цвет уже есть, добавьте другой цввет');
     } else {
-      const newDocRef = ref(db, 'Colors');
-
       try {
-        await push(newDocRef, newColor);
+        await apiClient.post('/colors', newColor);
         alert('Новый цвет добавлен');
         setAddNewColorModal(false);
         window.location.reload()

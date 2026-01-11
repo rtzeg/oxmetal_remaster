@@ -6,19 +6,13 @@ import Loading from '../Loading';
 import AdminItem from './AdminItem';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Test from './Test';
+import { goodsToArray } from '../../utils/goods';
 
 export default function Admin() {
   const data = useSelector((state) => state.goods.data);
-  const convertedArr = Object.keys(data);
-
+  const dataArray = goodsToArray(data);
   const load = useSelector((state) => state.goods.status);
-  const newArray = Object.values(data);
   const navigate = useNavigate();
-
-  const combinedArr = newArray.map((item, index) => ({
-    value1: item,
-    value2: convertedArr[index],
-  }));
 
   const dispatch = useDispatch();
   React.useEffect(() => {
@@ -45,11 +39,10 @@ export default function Admin() {
         </div>
       </div>
       <div className={styles.adminWrapper}>
-        {combinedArr?.map((item, idx) => (
+        {dataArray?.map((item, idx) => (
           <AdminItem
             key={idx}
-            arr={item.value1}
-            arr2={item.value2}
+            arr={item}
             // idx={Math.floor(Math.random() * item.value1?.color?.length)}
           />
         ))}

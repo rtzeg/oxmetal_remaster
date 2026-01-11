@@ -33,7 +33,7 @@ function App() {
       )}
   
       <Route path="/admin/control/add-item" element={<AddItem />} />
-      <Route path="/admin/control/add-item/:productKey/:productIndex" element={<AddItem />} />
+      <Route path="/admin/control/add-item/:productId" element={<AddItem />} />
     </Routes>
 
     </AuthCTX.Provider>

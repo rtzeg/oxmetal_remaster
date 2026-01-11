@@ -1,17 +1,28 @@
 import React from 'react';
 import styles from './Admin.module.scss';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../utils/api';
 
-export default function AdminItem({ arr, idx, arr2 }) {
-  const { material, view, Guarantee, price, color, tipes, coating, sizes, key, category, profile } = arr;
+export default function AdminItem({ arr, idx }) {
+  const {
+    id,
+    material,
+    view,
+    Guarantee,
+    price,
+    color,
+    tipes,
+    coating,
+    sizes,
+    key,
+    category,
+    profile,
+  } = arr;
   const navigate = useNavigate();
   const onDelete = async (key) => {
     try {
       if (confirm('вы действительно хотите удалить этот материал?'))
-        await axios.delete(
-          `https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products/${key}.json`,
-        );
+        await apiClient.delete(`/products/${key}`);
       location.reload();
     } catch (err) {
       console.log(err);
@@ -23,7 +34,7 @@ export default function AdminItem({ arr, idx, arr2 }) {
     <div className={styles.adminItem}>
       <img className="ProductImgW" src={color[0].src} />
 
-      <h1 onClick={() => console.log(arr2)} className=" hover:underline hover:text-[#C5E500]">
+      <h1 className=" hover:underline hover:text-[#C5E500]">
         {material} {tipes} ({coating}-
         <span>
           {
@@ -61,14 +72,14 @@ export default function AdminItem({ arr, idx, arr2 }) {
       )}
 
       <div className={`${styles.adminItemActions} flex items-center justify-between`}>
-        <Link to={`/admin/control/add-item/${key}/${arr2}`}>
+        <Link to={`/admin/control/add-item/${id ?? key}`}>
           <button className="flex py-[10px] mr-[15px] w-fit text-[11px] font-bold button px-[30px]">
             ИЗМЕНИТЬ
           </button>
         </Link>
 
         <button
-          onClick={() => onDelete(arr2)}
+          onClick={() => onDelete(id ?? key)}
           className="flex items-center py-[10px] w-fit text-[11px] font-bold button px-[30px]">
           УДАЛИТЬ <img className="w-[15px] h-[15px]" src="../icons/close.png" alt="close" />
         </button>

@@ -8,7 +8,8 @@ const ProductCart = ({ Product, idx }) => {
   // eslint-disable-next-line react/prop-types
   const { setOpenModal } = useContext(Modal);
   
-  const { material, view, Guarantee, price, color, tipes, coating, sizes, key } = Product;
+  const { id, material, view, Guarantee, price, color, tipes, coating, sizes, key } = Product;
+  const productId = id ?? key;
 
 
   return (
@@ -18,7 +19,7 @@ const ProductCart = ({ Product, idx }) => {
       data-aos-duration="700"
       data-aos-anchor-placement="bottom-bottom">
      
-      <Link to={'/product/' + key}>
+      <Link to={'/product/' + productId}>
         <img
           className="ProductImgW"
           src={
@@ -27,7 +28,7 @@ const ProductCart = ({ Product, idx }) => {
           }
         />
       </Link>
-      <Link to={'/product/' + key}>
+      <Link to={'/product/' + productId}>
         <h1 className=" hover:underline hover:text-[#C5E500]">
           {material} {tipes} ({coating}-
           <span>
@@ -55,7 +56,7 @@ const ProductCart = ({ Product, idx }) => {
         </span>
       </p>
       <div className="Optins">
-        <Link to={'/product/' + key}>
+        <Link to={'/product/' + productId}>
           <button className="flex py-[10px] w-fit text-[11px] font-bold button px-[30px]">
             ПОДРОБНЕЕ
           </button>

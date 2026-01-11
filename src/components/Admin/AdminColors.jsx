@@ -3,9 +3,6 @@ import styles from './Admin.module.scss';
 import { storage } from '../../../firebase';
 import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
 import { v4 } from 'uuid';
-import { db } from '../../../firebase';
-
-import { ref, set, push, update } from 'firebase/database';
 
 export default function AdminColors({
   arr,

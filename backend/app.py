@@ -45,6 +45,28 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS colors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rgba TEXT,
+                color TEXT,
+                name TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS coatings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         connection.commit()
         ensure_columns(connection)
 
@@ -67,6 +89,28 @@ class Color(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
     src: Optional[str] = None
+
+
+class ColorRecord(BaseModel):
+    id: int
+    RGBA: Optional[str] = None
+    color: Optional[str] = None
+    name: Optional[str] = None
+
+
+class ColorCreate(BaseModel):
+    RGBA: Optional[str] = None
+    color: Optional[str] = None
+    name: Optional[str] = None
+
+
+class CoatingRecord(BaseModel):
+    id: int
+    name: str
+
+
+class CoatingCreate(BaseModel):
+    name: str
 
 
 class ProductBase(BaseModel):
@@ -201,6 +245,66 @@ def get_product(product_id: int) -> Product:
     if not row:
         raise HTTPException(status_code=404, detail="Product not found")
     return row_to_product(row)
+
+
+@app.get("/colors", response_model=list[ColorRecord])
+def list_colors() -> list[ColorRecord]:
+    with get_connection() as connection:
+        rows = connection.execute("SELECT id, rgba, color, name FROM colors ORDER BY name").fetchall()
+    return [
+        ColorRecord(
+            id=row["id"],
+            RGBA=row["rgba"],
+            color=row["color"],
+            name=row["name"],
+        )
+        for row in rows
+    ]
+
+
+@app.post("/colors", response_model=ColorRecord, status_code=201)
+def create_color(payload: ColorCreate) -> ColorRecord:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO colors (rgba, color, name)
+            VALUES (?, ?, ?)
+            """,
+            (payload.RGBA, payload.color, payload.name),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, rgba, color, name FROM colors WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    return ColorRecord(
+        id=row["id"],
+        RGBA=row["rgba"],
+        color=row["color"],
+        name=row["name"],
+    )
+
+
+@app.get("/coatings", response_model=list[CoatingRecord])
+def list_coatings() -> list[CoatingRecord]:
+    with get_connection() as connection:
+        rows = connection.execute("SELECT id, name FROM coatings ORDER BY name").fetchall()
+    return [CoatingRecord(id=row["id"], name=row["name"]) for row in rows]
+
+
+@app.post("/coatings", response_model=CoatingRecord, status_code=201)
+def create_coating(payload: CoatingCreate) -> CoatingRecord:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "INSERT INTO coatings (name) VALUES (?)",
+            (payload.name,),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name FROM coatings WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    return CoatingRecord(id=row["id"], name=row["name"])
 
 
 @app.post("/products", response_model=Product, status_code=201, response_model_by_alias=True)
@@ -353,6 +457,8 @@ def delete_product(product_id: int) -> None:
 def admin_summary() -> dict:
     with get_connection() as connection:
         total = connection.execute("SELECT COUNT(*) as total FROM products").fetchone()
+        colors_count = connection.execute("SELECT COUNT(*) as total FROM colors").fetchone()
+        coatings_count = connection.execute("SELECT COUNT(*) as total FROM coatings").fetchone()
         categories = connection.execute(
             """
             SELECT category, COUNT(*) as count
@@ -364,5 +470,7 @@ def admin_summary() -> dict:
         ).fetchall()
     return {
         "total": total["total"],
+        "colors": colors_count["total"],
+        "coatings": coatings_count["total"],
         "categories": [{"category": row["category"], "count": row["count"]} for row in categories],
     }

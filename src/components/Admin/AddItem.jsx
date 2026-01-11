@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import styles from './Admin.module.scss';
 import { aaa } from '../arr';
 import { coat } from '../arr';
@@ -6,25 +6,22 @@ import AdminColors from './AdminColors';
 import Coating from './Coating';
 import Input from './Input';
 import { useDispatch, useSelector } from 'react-redux';
-import { getGoodAPI, pathGoodAPI, postGoodAPI } from '../../features/goods/thunk';
-import { db } from '../../../firebase';
+import { getGoodAPI } from '../../features/goods/thunk';
 import { storage } from '../../../firebase';
-import { ref, set, push, update } from 'firebase/database';
-import { getDownloadURL, ref as sRef } from 'firebase/storage';
-import { getStorage, listAll, uploadBytes } from 'firebase/storage';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
+import { useNavigate, useParams } from 'react-router-dom';
 import { v4 } from 'uuid';
-import axios from 'axios';
-import { fetchColors, getColor } from '../../features/colorsSlice';
+import { apiClient } from '../../utils/api';
+import { fetchColors } from '../../features/colorsSlice';
 import ColorModal from './ColorModal';
 import CoatingModal from './CoatingModal';
 import { fetchCoating } from '../../features/coatingSlice';
+import { goodsToArray } from '../../utils/goods';
 
 export default function AddItem() {
-  const { productKey, productIndex } = useParams();
+  const { productId } = useParams();
 
   const [product, setProduct] = React.useState([]);
-  const location = useLocation();
   const goods = useSelector((state) => state.goods.data);
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
@@ -44,7 +41,7 @@ export default function AddItem() {
   const [addNewColorModal, setAddNewColorModal] = React.useState(false);
   const [isCoatingModal, setIsCoatingModal] = React.useState(false);
   const [showNewDiv, setShowNewDiv] = React.useState(true);
-  const newArray = Object.values(goods);
+  const newArray = goodsToArray(goods);
   const newColors = Object.values(colors);
 
   const newCoating = Object.values(coating);
@@ -71,8 +68,8 @@ export default function AddItem() {
   });
 
   useEffect(() => {
-    if (productKey !== undefined) {
-      setProduct([...newArray.filter((i) => i.key == productKey)]);
+    if (productId !== undefined) {
+      setProduct([...newArray.filter((i) => String(i.id ?? i.key) == String(productId))]);
       setData((prev) => ({
         ...prev,
         Guarantee: product[0]?.Guarantee,
@@ -108,7 +105,7 @@ export default function AddItem() {
       // console.log(product[0]?.color);
       // console.log(product[0]);
     }
-  }, [goods, productKey]);
+  }, [goods, productId]);
 
   // onChange для материал
   const handleMaterialChange = (event) => {
@@ -156,6 +153,18 @@ export default function AddItem() {
     setData({ ...data, thickness: event.target.value });
   };
 
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
   // onChange для data.Guarantee
   const handleGuaranteeChange = (event) => {
     const value = event.target.value.trim() !== '' ? parseFloat(event.target.value) : null;
@@ -185,17 +194,12 @@ export default function AddItem() {
 
   const addSelectColor = (data) => {
     event.preventDefault();
-
-    const newDocRef = ref(db, 'Products');
-
-    const productRef = push(newDocRef);
     if (data.src === '' || data.color.length === 0) {
       alert('Добавьте фото и цвет');
     } else {
       setData((prev) => ({
         ...prev,
         color: [...prev.color, data],
-        key: productRef.key,
       }));
       setShowNewDiv(true);
       setColorModal(false);
@@ -302,10 +306,10 @@ export default function AddItem() {
     e.preventDefault();
 
     try {
-      await axios.patch(
-        `https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products/${productIndex}.json`,
-        data,
-      );
+      const currentId = productId;
+      const payload = { ...data };
+      delete payload.key;
+      await apiClient.put(`/products/${currentId}`, payload);
       alert('Изменено');
 
       navigate('/admin/control');
@@ -326,10 +330,10 @@ export default function AddItem() {
 
     // setData([...data, item]);
 
-    const newDocRef = ref(db, 'Products');
-
     try {
-      await push(newDocRef, data);
+      const payload = { ...data };
+      delete payload.key;
+      await apiClient.post('/products', payload);
       alert('Добавлено');
 
       navigate('/admin/control');
@@ -591,7 +595,7 @@ export default function AddItem() {
           />
         </div>
 
-        {productKey ? (
+        {productId ? (
           <div className="flex items-center py-2">
             <div className="button w-[170px] h-[70px] flex items-center justify-center">
               <button onClick={onPatch}>Изменить</button>
