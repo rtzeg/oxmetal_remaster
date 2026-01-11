@@ -354,7 +354,7 @@ export default function AddItem() {
         {/* добавить название */}
 
         {/* добавить фото */}
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onFocus}>Фото чертежа</button>
           </div>
@@ -445,7 +445,7 @@ export default function AddItem() {
           setIsCoatingModal={setIsCoatingModal}
         />
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onIconFocus}>Фото вида</button>
           </div>
@@ -454,7 +454,7 @@ export default function AddItem() {
           {/* <img src="/icons/profIcon.svg" alt="" /> */}
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* материал */}
           <Input
             placeholder="Материал"
@@ -472,7 +472,7 @@ export default function AddItem() {
             width="40%"
           />
         </div>
-        <div className="flex justify-between items-center">
+        <div className={`${styles.formRow} flex justify-between items-center`}>
           {' '}
           {/* цена */}
           <Input
@@ -492,7 +492,7 @@ export default function AddItem() {
             type="number"
           />
         </div>
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* размер */}
 
           <Input
@@ -513,7 +513,7 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           <Input
             placeholder="Имя (не обязательно поле)"
             onChange={handleNameChange}
@@ -530,7 +530,7 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onMaterialFocus}>иконка материала</button>
           </div>
