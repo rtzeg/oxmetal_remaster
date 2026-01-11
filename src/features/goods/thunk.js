@@ -1,5 +1,5 @@
-import axios from "axios";
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { apiClient } from "../../utils/api";
 
 
 
@@ -8,43 +8,27 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 
 
 export const getGoodAPI = createAsyncThunk("goods/getGoodAPI", async () => {
-  
-  const res = await axios.get(
-
-    "https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products.json"
-  );
-
+  const res = await apiClient.get("/products");
   return res.data;
 });
 export const postGoodAPI = createAsyncThunk(
   "goods/postGoodAPI",
   async (data) => {
-   
-    const res = await axios.post(
-      "https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products.json",
-      data
-    );
-
+    const res = await apiClient.post("/products", data);
     return res.data;
   }
 );
 export const pathGoodAPI = createAsyncThunk(
   "goods/pathGoodAPI",
   async (data) => { 
-    console.log(data); 
-    const res = await axios.patch(
-      "https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products/-NsHNN90I1nWU6QkydOP.json",data
-   
-    );
-
+    const res = await apiClient.put(`/products/${data.id}`, data.payload);
     return res.data;
   }
 );
 export const deleteGoodAPI = createAsyncThunk(
   "goods/deleteGoodAPI",
   async (data) => {
-    const res = await axios.delete("http://localhost:3001/goods/" + data);
-
+    const res = await apiClient.delete(`/products/${data}`);
     return res.data;
   }
 );

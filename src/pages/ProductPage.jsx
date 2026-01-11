@@ -16,6 +16,7 @@ import { FreeMode, Navigation, Thumbs, Pagination } from 'swiper/modules';
 import { Modal } from '../contexts/Modal';
 import { scrollToElement } from '../../utils/functions';
 import Calculator from '../components/Calculator';
+import { goodsToArray } from '../utils/goods';
 
 SwiperCore.use([Pagination]);
 
@@ -23,7 +24,7 @@ const ProductPage = () => {
   let { ProductId } = useParams();
   console.log(ProductId);
   const goods = useSelector((state) => state.goods.data);
-  const newArr = Object.values(goods);
+  const newArr = goodsToArray(goods);
   const [Prodict, setProdict] = useState([]);
   const [ProductItem, setProductItem] = useState({});
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
@@ -35,8 +36,11 @@ const ProductPage = () => {
     ProductItem;
   useEffect(() => {
     if (newArr.length > 0) {
-      setProdict([...newArr.filter((i) => i.key == ProductId)]);
-      setProductItem([...newArr.filter((i) => i.key == ProductId)][0]);
+      const matched = newArr.filter(
+        (i) => String(i.id ?? i.key) === String(ProductId),
+      );
+      setProdict([...matched]);
+      setProductItem(matched[0]);
 
       let arr = newArr.filter((i) => i.material === material && i.tipes === tipes);
       let Uniq = [];
@@ -189,7 +193,7 @@ const ProductPage = () => {
                 <div className="coatingCont">
                   {Coating.map((item, idx) => (
                     <Link
-                      to={'/product/' + item.key}
+                      to={'/product/' + (item.id ?? item.key)}
                       key={item.coating + idx + item.idx}
                       onClick={() => {
                         handleItemClick();
@@ -241,7 +245,7 @@ const ProductPage = () => {
                 <div className="coatingCont">
                   {Sizes.map((item, idx) => (
                     <Link
-                      to={'/product/' + item.key}
+                      to={'/product/' + (item.id ?? item.key)}
                       key={item.sizes + idx + item.idx}
                       onClick={() => {
                         scrollToElement('product');
