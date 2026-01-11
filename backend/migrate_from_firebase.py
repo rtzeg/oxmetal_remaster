@@ -88,8 +88,45 @@ def normalize_products(raw: Any) -> list[dict[str, Any]]:
     return []
 
 
-def migrate_products(connection: sqlite3.Connection, products: list[dict[str, Any]]) -> None:
+def normalize_color_item(item: Any, palette: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    if isinstance(item, dict):
+        color_value = item.get("color") or item.get("RGBA") or item.get("name")
+        palette_item = palette.get(str(color_value).lower()) if color_value else None
+        return {
+            "RGBA": item.get("RGBA") or (palette_item or {}).get("RGBA"),
+            "color": item.get("color") or (palette_item or {}).get("color"),
+            "name": item.get("name") or (palette_item or {}).get("name"),
+            "src": item.get("src") or item.get("img") or item.get("image"),
+        }
+    if isinstance(item, str):
+        palette_item = palette.get(item.lower())
+        if palette_item:
+            return {
+                "RGBA": palette_item.get("RGBA"),
+                "color": palette_item.get("color"),
+                "name": palette_item.get("name"),
+                "src": None,
+            }
+    return {"RGBA": None, "color": None, "name": None, "src": None}
+
+
+def build_palette(colors: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    palette: dict[str, dict[str, Any]] = {}
+    for color in colors:
+        for key in [color.get("RGBA"), color.get("color"), color.get("name")]:
+            if key:
+                palette[str(key).lower()] = color
+    return palette
+
+
+def migrate_products(
+    connection: sqlite3.Connection,
+    products: list[dict[str, Any]],
+    palette: dict[str, dict[str, Any]],
+) -> None:
     for product in products:
+        raw_colors = product.get("color") or []
+        colors = [normalize_color_item(item, palette) for item in raw_colors]
         payload = {
             "name": product.get("name"),
             "material": product.get("material") or "",
@@ -103,7 +140,7 @@ def migrate_products(connection: sqlite3.Connection, products: list[dict[str, An
             "sizes": product.get("sizes"),
             "calcwidth": product.get("calcwidth"),
             "coating": product.get("coating"),
-            "color_json": json.dumps(product.get("color") or []),
+            "color_json": json.dumps(colors),
             "blueprint": product.get("blueprint"),
             "material_img": product.get("materialImg"),
             "view_img": product.get("viewImg"),
@@ -228,8 +265,9 @@ def main() -> None:
         products = normalize_products(fetch_json("Products"))
         colors = normalize_products(fetch_json("Colors"))
         coatings = normalize_products(fetch_json("Coating"))
+        palette = build_palette(colors)
 
-        migrate_products(connection, products)
+        migrate_products(connection, products, palette)
         migrate_colors(connection, colors)
         migrate_coatings(connection, coatings)
 

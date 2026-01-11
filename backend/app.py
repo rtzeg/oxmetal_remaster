@@ -67,6 +67,50 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                slug TEXT UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS subcategories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                slug TEXT UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS category_subcategories (
+                category_id INTEGER NOT NULL,
+                subcategory_id INTEGER NOT NULL,
+                PRIMARY KEY (category_id, subcategory_id),
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+                FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS product_subcategories (
+                product_id INTEGER NOT NULL,
+                subcategory_id INTEGER NOT NULL,
+                PRIMARY KEY (product_id, subcategory_id),
+                FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+                FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE
+            )
+            """
+        )
         connection.commit()
         ensure_columns(connection)
 
@@ -111,6 +155,37 @@ class CoatingRecord(BaseModel):
 
 class CoatingCreate(BaseModel):
     name: str
+
+
+class CategoryRecord(BaseModel):
+    id: int
+    name: str
+    slug: Optional[str] = None
+    subcategories: list["SubcategoryRecord"] = []
+
+
+class CategoryCreate(BaseModel):
+    name: str
+    slug: Optional[str] = None
+
+
+class SubcategoryRecord(BaseModel):
+    id: int
+    name: str
+    slug: Optional[str] = None
+
+
+class SubcategoryCreate(BaseModel):
+    name: str
+    slug: Optional[str] = None
+
+
+class CategorySubcategoryLink(BaseModel):
+    subcategory_id: int
+
+
+class ProductSubcategoryLink(BaseModel):
+    product_id: int
 
 
 class ProductBase(BaseModel):
@@ -305,6 +380,143 @@ def create_coating(payload: CoatingCreate) -> CoatingRecord:
             (cursor.lastrowid,),
         ).fetchone()
     return CoatingRecord(id=row["id"], name=row["name"])
+
+
+@app.get("/categories", response_model=list[CategoryRecord])
+def list_categories() -> list[CategoryRecord]:
+    with get_connection() as connection:
+        categories = connection.execute(
+            "SELECT id, name, slug FROM categories ORDER BY name"
+        ).fetchall()
+        links = connection.execute(
+            """
+            SELECT cs.category_id, s.id, s.name, s.slug
+            FROM category_subcategories cs
+            JOIN subcategories s ON s.id = cs.subcategory_id
+            ORDER BY s.name
+            """
+        ).fetchall()
+    by_category: dict[int, list[SubcategoryRecord]] = {}
+    for row in links:
+        by_category.setdefault(row["category_id"], []).append(
+            SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+        )
+    return [
+        CategoryRecord(
+            id=row["id"],
+            name=row["name"],
+            slug=row["slug"],
+            subcategories=by_category.get(row["id"], []),
+        )
+        for row in categories
+    ]
+
+
+@app.post("/categories", response_model=CategoryRecord, status_code=201)
+def create_category(payload: CategoryCreate) -> CategoryRecord:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "INSERT INTO categories (name, slug) VALUES (?, ?)",
+            (payload.name, payload.slug),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, slug FROM categories WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    return CategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], subcategories=[])
+
+
+@app.get("/subcategories", response_model=list[SubcategoryRecord])
+def list_subcategories() -> list[SubcategoryRecord]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT id, name, slug FROM subcategories ORDER BY name"
+        ).fetchall()
+    return [SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"]) for row in rows]
+
+
+@app.post("/subcategories", response_model=SubcategoryRecord, status_code=201)
+def create_subcategory(payload: SubcategoryCreate) -> SubcategoryRecord:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "INSERT INTO subcategories (name, slug) VALUES (?, ?)",
+            (payload.name, payload.slug),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    return SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+
+
+@app.post("/categories/{category_id}/subcategories", status_code=204)
+def link_category_subcategory(category_id: int, payload: CategorySubcategoryLink) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO category_subcategories (category_id, subcategory_id)
+            VALUES (?, ?)
+            """,
+            (category_id, payload.subcategory_id),
+        )
+        connection.commit()
+
+
+@app.delete("/categories/{category_id}/subcategories/{subcategory_id}", status_code=204)
+def unlink_category_subcategory(category_id: int, subcategory_id: int) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            DELETE FROM category_subcategories
+            WHERE category_id = ? AND subcategory_id = ?
+            """,
+            (category_id, subcategory_id),
+        )
+        connection.commit()
+
+
+@app.post("/subcategories/{subcategory_id}/products", status_code=204)
+def link_product_subcategory(subcategory_id: int, payload: ProductSubcategoryLink) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO product_subcategories (product_id, subcategory_id)
+            VALUES (?, ?)
+            """,
+            (payload.product_id, subcategory_id),
+        )
+        connection.commit()
+
+
+@app.delete("/subcategories/{subcategory_id}/products/{product_id}", status_code=204)
+def unlink_product_subcategory(subcategory_id: int, product_id: int) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            DELETE FROM product_subcategories
+            WHERE product_id = ? AND subcategory_id = ?
+            """,
+            (product_id, subcategory_id),
+        )
+        connection.commit()
+
+
+@app.get("/subcategories/{subcategory_id}/products", response_model=list[Product])
+def list_products_by_subcategory(subcategory_id: int) -> list[Product]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT p.*
+            FROM products p
+            JOIN product_subcategories ps ON ps.product_id = p.id
+            WHERE ps.subcategory_id = ?
+            ORDER BY p.id DESC
+            """,
+            (subcategory_id,),
+        ).fetchall()
+    return [row_to_product(row) for row in rows]
 
 
 @app.post("/products", response_model=Product, status_code=201, response_model_by_alias=True)
