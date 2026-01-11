@@ -28,6 +28,9 @@ def init_db() -> None:
                 material TEXT NOT NULL,
                 view TEXT NOT NULL,
                 tipes TEXT,
+                category TEXT,
+                profile TEXT,
+                thickness TEXT,
                 price REAL,
                 guarantee INTEGER,
                 sizes TEXT,
@@ -43,6 +46,21 @@ def init_db() -> None:
             """
         )
         connection.commit()
+        ensure_columns(connection)
+
+
+def ensure_columns(connection: sqlite3.Connection) -> None:
+    cursor = connection.execute("PRAGMA table_info(products)")
+    existing_columns = {row["name"] for row in cursor.fetchall()}
+    required_columns = {
+        "category": "TEXT",
+        "profile": "TEXT",
+        "thickness": "TEXT",
+    }
+    for column, column_type in required_columns.items():
+        if column not in existing_columns:
+            connection.execute(f"ALTER TABLE products ADD COLUMN {column} {column_type}")
+    connection.commit()
 
 
 class Color(BaseModel):
@@ -56,6 +74,9 @@ class ProductBase(BaseModel):
     material: str
     view: str
     tipes: Optional[str] = None
+    category: Optional[str] = None
+    profile: Optional[str] = None
+    thickness: Optional[str] = None
     price: Optional[float] = None
     guarantee: Optional[int] = Field(None, alias="Guarantee")
     sizes: Optional[str] = None
@@ -79,6 +100,9 @@ class ProductUpdate(BaseModel):
     material: Optional[str] = None
     view: Optional[str] = None
     tipes: Optional[str] = None
+    category: Optional[str] = None
+    profile: Optional[str] = None
+    thickness: Optional[str] = None
     price: Optional[float] = None
     guarantee: Optional[int] = Field(None, alias="Guarantee")
     sizes: Optional[str] = None
@@ -118,6 +142,9 @@ def row_to_product(row: sqlite3.Row) -> Product:
         material=row["material"],
         view=row["view"],
         tipes=row["tipes"],
+        category=row["category"],
+        profile=row["profile"],
+        thickness=row["thickness"],
         price=row["price"],
         guarantee=row["guarantee"],
         sizes=row["sizes"],
@@ -131,10 +158,40 @@ def row_to_product(row: sqlite3.Row) -> Product:
 
 
 @app.get("/products", response_model=list[Product], response_model_by_alias=True)
-def list_products() -> list[Product]:
+def list_products(
+    category: Optional[str] = None,
+    profile: Optional[str] = None,
+    coating: Optional[str] = None,
+    color: Optional[str] = None,
+) -> list[Product]:
+    filters = []
+    params: list[object] = []
+    if category:
+        filters.append("category = ?")
+        params.append(category)
+    if profile:
+        filters.append("profile = ?")
+        params.append(profile)
+    if coating:
+        filters.append("coating = ?")
+        params.append(coating)
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+    else:
+        where_clause = ""
     with get_connection() as connection:
-        rows = connection.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
-    return [row_to_product(row) for row in rows]
+        rows = connection.execute(
+            f"SELECT * FROM products {where_clause} ORDER BY id DESC",
+            params,
+        ).fetchall()
+    products = [row_to_product(row) for row in rows]
+    if color:
+        products = [
+            product
+            for product in products
+            if any(item.name == color or item.color == color for item in product.color)
+        ]
+    return products
 
 
 @app.get("/products/{product_id}", response_model=Product, response_model_by_alias=True)
@@ -156,6 +213,9 @@ def create_product(payload: ProductCreate) -> Product:
                 material,
                 view,
                 tipes,
+                category,
+                profile,
+                thickness,
                 price,
                 guarantee,
                 sizes,
@@ -166,13 +226,16 @@ def create_product(payload: ProductCreate) -> Product:
                 material_img,
                 view_img
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.name,
                 payload.material,
                 payload.view,
                 payload.tipes,
+                payload.category,
+                payload.profile,
+                payload.thickness,
                 payload.price,
                 payload.guarantee,
                 payload.sizes,
@@ -203,6 +266,9 @@ def update_product(product_id: int, payload: ProductUpdate) -> Product:
             "material": row["material"],
             "view": row["view"],
             "tipes": row["tipes"],
+            "category": row["category"],
+            "profile": row["profile"],
+            "thickness": row["thickness"],
             "price": row["price"],
             "guarantee": row["guarantee"],
             "sizes": row["sizes"],
@@ -234,6 +300,9 @@ def update_product(product_id: int, payload: ProductUpdate) -> Product:
                 material = ?,
                 view = ?,
                 tipes = ?,
+                category = ?,
+                profile = ?,
+                thickness = ?,
                 price = ?,
                 guarantee = ?,
                 sizes = ?,
@@ -251,6 +320,9 @@ def update_product(product_id: int, payload: ProductUpdate) -> Product:
                 updated["material"],
                 updated["view"],
                 updated["tipes"],
+                updated["category"],
+                updated["profile"],
+                updated["thickness"],
                 updated["price"],
                 updated["guarantee"],
                 updated["sizes"],
@@ -276,3 +348,21 @@ def delete_product(product_id: int) -> None:
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Product not found")
 
+
+@app.get("/admin/summary")
+def admin_summary() -> dict:
+    with get_connection() as connection:
+        total = connection.execute("SELECT COUNT(*) as total FROM products").fetchone()
+        categories = connection.execute(
+            """
+            SELECT category, COUNT(*) as count
+            FROM products
+            WHERE category IS NOT NULL AND category != ''
+            GROUP BY category
+            ORDER BY count DESC
+            """
+        ).fetchall()
+    return {
+        "total": total["total"],
+        "categories": [{"category": row["category"], "count": row["count"]} for row in categories],
+    }

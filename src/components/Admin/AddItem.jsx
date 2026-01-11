@@ -60,6 +60,9 @@ export default function AddItem() {
     material: '',
     materialImg: '',
     name: '',
+    category: '',
+    profile: '',
+    thickness: '',
     price: Number,
     sizes: '',
     tipes: '',
@@ -83,6 +86,9 @@ export default function AddItem() {
         blueprint: product[0]?.blueprint,
         materialImg: product[0]?.materialImg,
         //   name: product[0]?.name,
+        category: product[0]?.category,
+        profile: product[0]?.profile,
+        thickness: product[0]?.thickness,
         sizes: product[0]?.sizes,
         tipes: product[0]?.tipes,
         view: product[0]?.view,
@@ -136,6 +142,18 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   // onChange для data.Guarantee
@@ -527,6 +545,34 @@ export default function AddItem() {
             onChange={handleTypesChange}
             placeholder="Тип"
             type="text"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Категория"
+            value={data.category}
+            onChange={handleCategoryChange}
+            type="text"
+            width="40%"
+          />
+
+          <Input
+            width="40%"
+            value={data.profile}
+            onChange={handleProfileChange}
+            placeholder="Профиль"
+            type="text"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Толщина/модель"
+            value={data.thickness}
+            onChange={handleThicknessChange}
+            type="text"
+            width="40%"
           />
         </div>
 
