@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import styles from './Admin.module.scss';
 import { aaa } from '../arr';
 import { coat } from '../arr';
@@ -6,25 +6,22 @@ import AdminColors from './AdminColors';
 import Coating from './Coating';
 import Input from './Input';
 import { useDispatch, useSelector } from 'react-redux';
-import { getGoodAPI, pathGoodAPI, postGoodAPI } from '../../features/goods/thunk';
-import { db } from '../../../firebase';
+import { getGoodAPI } from '../../features/goods/thunk';
 import { storage } from '../../../firebase';
-import { ref, set, push, update } from 'firebase/database';
-import { getDownloadURL, ref as sRef } from 'firebase/storage';
-import { getStorage, listAll, uploadBytes } from 'firebase/storage';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
+import { useNavigate, useParams } from 'react-router-dom';
 import { v4 } from 'uuid';
-import axios from 'axios';
-import { fetchColors, getColor } from '../../features/colorsSlice';
+import { apiClient } from '../../utils/api';
+import { fetchColors } from '../../features/colorsSlice';
 import ColorModal from './ColorModal';
 import CoatingModal from './CoatingModal';
 import { fetchCoating } from '../../features/coatingSlice';
+import { goodsToArray } from '../../utils/goods';
 
 export default function AddItem() {
-  const { productKey, productIndex } = useParams();
+  const { productId } = useParams();
 
   const [product, setProduct] = React.useState([]);
-  const location = useLocation();
   const goods = useSelector((state) => state.goods.data);
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
@@ -44,7 +41,7 @@ export default function AddItem() {
   const [addNewColorModal, setAddNewColorModal] = React.useState(false);
   const [isCoatingModal, setIsCoatingModal] = React.useState(false);
   const [showNewDiv, setShowNewDiv] = React.useState(true);
-  const newArray = Object.values(goods);
+  const newArray = goodsToArray(goods);
   const newColors = Object.values(colors);
 
   const newCoating = Object.values(coating);
@@ -60,6 +57,9 @@ export default function AddItem() {
     material: '',
     materialImg: '',
     name: '',
+    category: '',
+    profile: '',
+    thickness: '',
     price: Number,
     sizes: '',
     tipes: '',
@@ -68,8 +68,8 @@ export default function AddItem() {
   });
 
   useEffect(() => {
-    if (productKey !== undefined) {
-      setProduct([...newArray.filter((i) => i.key == productKey)]);
+    if (productId !== undefined) {
+      setProduct([...newArray.filter((i) => String(i.id ?? i.key) == String(productId))]);
       setData((prev) => ({
         ...prev,
         Guarantee: product[0]?.Guarantee,
@@ -83,6 +83,9 @@ export default function AddItem() {
         blueprint: product[0]?.blueprint,
         materialImg: product[0]?.materialImg,
         //   name: product[0]?.name,
+        category: product[0]?.category,
+        profile: product[0]?.profile,
+        thickness: product[0]?.thickness,
         sizes: product[0]?.sizes,
         tipes: product[0]?.tipes,
         view: product[0]?.view,
@@ -102,7 +105,7 @@ export default function AddItem() {
       // console.log(product[0]?.color);
       // console.log(product[0]);
     }
-  }, [goods, productKey]);
+  }, [goods, productId]);
 
   // onChange для материал
   const handleMaterialChange = (event) => {
@@ -138,6 +141,18 @@ export default function AddItem() {
     setData({ ...data, name: event.target.value });
   };
 
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
   // onChange для data.Guarantee
   const handleGuaranteeChange = (event) => {
     const value = event.target.value.trim() !== '' ? parseFloat(event.target.value) : null;
@@ -167,17 +182,12 @@ export default function AddItem() {
 
   const addSelectColor = (data) => {
     event.preventDefault();
-
-    const newDocRef = ref(db, 'Products');
-
-    const productRef = push(newDocRef);
     if (data.src === '' || data.color.length === 0) {
       alert('Добавьте фото и цвет');
     } else {
       setData((prev) => ({
         ...prev,
         color: [...prev.color, data],
-        key: productRef.key,
       }));
       setShowNewDiv(true);
       setColorModal(false);
@@ -284,10 +294,10 @@ export default function AddItem() {
     e.preventDefault();
 
     try {
-      await axios.patch(
-        `https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products/${productIndex}.json`,
-        data,
-      );
+      const currentId = productId;
+      const payload = { ...data };
+      delete payload.key;
+      await apiClient.put(`/products/${currentId}`, payload);
       alert('Изменено');
 
       navigate('/admin/control');
@@ -308,10 +318,10 @@ export default function AddItem() {
 
     // setData([...data, item]);
 
-    const newDocRef = ref(db, 'Products');
-
     try {
-      await push(newDocRef, data);
+      const payload = { ...data };
+      delete payload.key;
+      await apiClient.post('/products', payload);
       alert('Добавлено');
 
       navigate('/admin/control');
@@ -354,7 +364,7 @@ export default function AddItem() {
         {/* добавить название */}
 
         {/* добавить фото */}
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onFocus}>Фото чертежа</button>
           </div>
@@ -445,7 +455,7 @@ export default function AddItem() {
           setIsCoatingModal={setIsCoatingModal}
         />
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onIconFocus}>Фото вида</button>
           </div>
@@ -454,7 +464,7 @@ export default function AddItem() {
           {/* <img src="/icons/profIcon.svg" alt="" /> */}
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* материал */}
           <Input
             placeholder="Материал"
@@ -472,7 +482,7 @@ export default function AddItem() {
             width="40%"
           />
         </div>
-        <div className="flex justify-between items-center">
+        <div className={`${styles.formRow} flex justify-between items-center`}>
           {' '}
           {/* цена */}
           <Input
@@ -492,7 +502,7 @@ export default function AddItem() {
             type="number"
           />
         </div>
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* размер */}
 
           <Input
@@ -513,7 +523,7 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           <Input
             placeholder="Имя (не обязательно поле)"
             onChange={handleNameChange}
@@ -530,7 +540,35 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Категория"
+            value={data.category}
+            onChange={handleCategoryChange}
+            type="text"
+            width="40%"
+          />
+
+          <Input
+            width="40%"
+            value={data.profile}
+            onChange={handleProfileChange}
+            placeholder="Профиль"
+            type="text"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Толщина/модель"
+            value={data.thickness}
+            onChange={handleThicknessChange}
+            type="text"
+            width="40%"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onMaterialFocus}>иконка материала</button>
           </div>
@@ -545,7 +583,7 @@ export default function AddItem() {
           />
         </div>
 
-        {productKey ? (
+        {productId ? (
           <div className="flex items-center py-2">
             <div className="button w-[170px] h-[70px] flex items-center justify-center">
               <button onClick={onPatch}>Изменить</button>
