@@ -8,8 +8,28 @@ const ProductCart = ({ Product, idx }) => {
   // eslint-disable-next-line react/prop-types
   const { setOpenModal } = useContext(Modal);
   
-  const { id, material, view, Guarantee, price, color, tipes, coating, sizes, key } = Product;
+  const {
+    id,
+    material,
+    view,
+    Guarantee,
+    price,
+    color,
+    tipes,
+    coating,
+    sizes,
+    key,
+    blueprint,
+    viewImg,
+    materialImg,
+  } = Product;
   const productId = id ?? key;
+  const colorList = Array.isArray(color) ? color : [];
+  const fallbackImage = blueprint || viewImg || materialImg;
+  const colorIndex =
+    idx == undefined || idx == -1 ? Math.floor(Math.random() * colorList.length) : idx;
+  const selectedColor = colorList[colorIndex];
+  const productImage = selectedColor?.src || fallbackImage;
 
 
   return (
@@ -20,23 +40,12 @@ const ProductCart = ({ Product, idx }) => {
       data-aos-anchor-placement="bottom-bottom">
      
       <Link to={'/product/' + productId}>
-        <img
-          className="ProductImgW"
-          src={
-            color[idx == undefined || idx == -1 ? Math.floor(Math.random() * color.length) : idx]
-              .src
-          }
-        />
+        {productImage && <img className="ProductImgW" src={productImage} />}
       </Link>
       <Link to={'/product/' + productId}>
         <h1 className=" hover:underline hover:text-[#C5E500]">
           {material} {tipes} ({coating}-
-          <span>
-            {
-              color[idx == undefined || idx == -1 ? Math.floor(Math.random() * color.length) : idx]
-                .name
-            }
-          </span>
+          <span>{selectedColor?.name || 'цвет'}</span>
           -{sizes})
         </h1>
       </Link>

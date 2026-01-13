@@ -180,6 +180,16 @@ class SubcategoryCreate(BaseModel):
     slug: Optional[str] = None
 
 
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+
+class SubcategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+
 class CategorySubcategoryLink(BaseModel):
     subcategory_id: int
 
@@ -427,6 +437,48 @@ def create_category(payload: CategoryCreate) -> CategoryRecord:
     return CategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], subcategories=[])
 
 
+@app.put("/categories/{category_id}", response_model=CategoryRecord)
+def update_category(category_id: int, payload: CategoryUpdate) -> CategoryRecord:
+    data = payload.dict(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT id, name, slug FROM categories WHERE id = ?",
+            (category_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Category not found")
+        updated = {"name": row["name"], "slug": row["slug"]}
+        updated.update(data)
+        connection.execute(
+            """
+            UPDATE categories
+            SET name = ?, slug = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (updated["name"], updated["slug"], category_id),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, slug FROM categories WHERE id = ?",
+            (category_id,),
+        ).fetchone()
+    return CategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], subcategories=[])
+
+
+@app.delete("/categories/{category_id}", status_code=204)
+def delete_category(category_id: int) -> None:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM categories WHERE id = ?",
+            (category_id,),
+        )
+        connection.commit()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+
 @app.get("/subcategories", response_model=list[SubcategoryRecord])
 def list_subcategories() -> list[SubcategoryRecord]:
     with get_connection() as connection:
@@ -449,6 +501,48 @@ def create_subcategory(payload: SubcategoryCreate) -> SubcategoryRecord:
             (cursor.lastrowid,),
         ).fetchone()
     return SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+
+
+@app.put("/subcategories/{subcategory_id}", response_model=SubcategoryRecord)
+def update_subcategory(subcategory_id: int, payload: SubcategoryUpdate) -> SubcategoryRecord:
+    data = payload.dict(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            (subcategory_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Subcategory not found")
+        updated = {"name": row["name"], "slug": row["slug"]}
+        updated.update(data)
+        connection.execute(
+            """
+            UPDATE subcategories
+            SET name = ?, slug = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (updated["name"], updated["slug"], subcategory_id),
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            (subcategory_id,),
+        ).fetchone()
+    return SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+
+
+@app.delete("/subcategories/{subcategory_id}", status_code=204)
+def delete_subcategory(subcategory_id: int) -> None:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM subcategories WHERE id = ?",
+            (subcategory_id,),
+        )
+        connection.commit()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
 
 
 @app.post("/categories/{category_id}/subcategories", status_code=204)

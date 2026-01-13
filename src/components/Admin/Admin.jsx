@@ -37,6 +37,11 @@ export default function Admin() {
             <button>Добавить</button>
           </Link>
         </div>
+        <div className={`${styles.adminHeaderButton} button w-[180px] h-[70px] flex items-center justify-center`}>
+          <Link to="/admin/control/categories">
+            <button>Категории</button>
+          </Link>
+        </div>
       </div>
       <div className={styles.adminWrapper}>
         {dataArray?.map((item, idx) => (

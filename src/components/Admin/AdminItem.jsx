@@ -17,8 +17,17 @@ export default function AdminItem({ arr, idx }) {
     key,
     category,
     profile,
+    blueprint,
+    viewImg,
+    materialImg,
   } = arr;
   const navigate = useNavigate();
+  const colorList = Array.isArray(color) ? color : [];
+  const fallbackImage = blueprint || viewImg || materialImg;
+  const colorIndex =
+    idx == undefined || idx == -1 ? Math.floor(Math.random() * colorList.length) : idx;
+  const selectedColor = colorList[colorIndex];
+  const productImage = selectedColor?.src || fallbackImage;
   const onDelete = async (key) => {
     try {
       if (confirm('вы действительно хотите удалить этот материал?'))
@@ -32,16 +41,11 @@ export default function AdminItem({ arr, idx }) {
 
   return (
     <div className={styles.adminItem}>
-      <img className="ProductImgW" src={color[0].src} />
+      {productImage && <img className="ProductImgW" src={productImage} />}
 
       <h1 className=" hover:underline hover:text-[#C5E500]">
         {material} {tipes} ({coating}-
-        <span>
-          {
-            color[idx == undefined || idx == -1 ? Math.floor(Math.random() * color.length) : idx]
-              .name
-          }
-        </span>
+        <span>{selectedColor?.name || 'цвет'}</span>
         -{sizes})
       </h1>
 
