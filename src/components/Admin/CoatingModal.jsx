@@ -1,7 +1,6 @@
 import React from 'react';
 import styles from './Admin.module.scss';
-import { ref, set, push, update } from 'firebase/database';
-import { db } from '../../../firebase';
+import { apiClient } from '../../utils/api';
 
 export default function CoatingModal({ arr, isCoatingModal, setIsCoatingModal }) {
   const [newCoating, setNewCoating] = React.useState('');
@@ -14,10 +13,8 @@ export default function CoatingModal({ arr, isCoatingModal, setIsCoatingModal })
     if (isIncludeCoat !== undefined) {
       alert('Такое покрытие уже есть');
     } else {
-      const newDocRef = ref(db, 'Coating');
-
       try {
-        await push(newDocRef, newCoating);
+        await apiClient.post('/coatings', { name: newCoating });
         alert('Новое покрытие добавлено');
 
         window.location.reload();

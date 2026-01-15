@@ -4,10 +4,11 @@ import { AiOutlineSearch } from 'react-icons/ai';
 import { useSelector } from 'react-redux';
 import ProductCart from '../components/ProductCart';
 import { scrollToElement } from '../../utils/functions';
+import { goodsToArray } from '../utils/goods';
 
 const SearchPage = () => {
   const goods = useSelector((state) => state.goods.data);
-  const newGoods = Object.values(goods);
+  const newGoods = goodsToArray(goods);
 
   const inp = useRef(null);
   const [FillGoods, setFillGoods] = useState([]);
