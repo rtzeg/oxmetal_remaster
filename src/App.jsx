@@ -8,6 +8,7 @@ import Authorization from './components/Authorization/Authorization';
 import Admin from './components/Admin/Admin';
 import AddItem from './components/Admin/AddItem';
 import FullProduct from './components/Admin/FullProduct';
+import AdminCategories from './components/Admin/AdminCategories';
 import { createContext, useState } from 'react';
 import { AuthCTX } from './contexts/Auth';
 
@@ -33,7 +34,8 @@ function App() {
       )}
   
       <Route path="/admin/control/add-item" element={<AddItem />} />
-      <Route path="/admin/control/add-item/:productKey/:productIndex" element={<AddItem />} />
+      <Route path="/admin/control/add-item/:productId" element={<AddItem />} />
+      <Route path="/admin/control/categories" element={<AdminCategories />} />
     </Routes>
 
     </AuthCTX.Provider>
