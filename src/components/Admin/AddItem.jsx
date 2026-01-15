@@ -96,9 +96,6 @@ export default function AddItem() {
 
       setActiveCoat(selectedIndexOfCoat);
       setShowNewDiv(true);
-
-      // console.log(product[0]?.color);
-      // console.log(product[0]);
     }
   }, [goods, productId]);
 
@@ -122,7 +119,7 @@ export default function AddItem() {
     };
     loadProductSubcategories();
   }, [productId]);
-  
+
   useEffect(() => {
     if (!categories.length) return;
     if (selectedCategoryId) return;
@@ -175,7 +172,6 @@ export default function AddItem() {
   const handleSizeChange = (event) => {
     setData({ ...data, sizes: event.target.value });
   };
-  // onChange для размера
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
@@ -206,114 +202,6 @@ export default function AddItem() {
     setData({ ...data, thickness: event.target.value });
   };
 
-  const handleCategoryInputChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryInputChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryInputChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
-  const handleCategoryChange = (event) => {
-    setData({ ...data, category: event.target.value });
-  };
-
-  const handleProfileChange = (event) => {
-    setData({ ...data, profile: event.target.value });
-  };
-
-  const handleThicknessChange = (event) => {
-    setData({ ...data, thickness: event.target.value });
-  };
-
   // onChange для data.Guarantee
   const handleGuaranteeChange = (event) => {
     const value = event.target.value.trim() !== '' ? parseFloat(event.target.value) : null;
@@ -321,7 +209,6 @@ export default function AddItem() {
   };
 
   // выбор покрытие
-
   function addSelectCoating(name) {
     setData({ ...data, coating: name });
   }
@@ -349,25 +236,7 @@ export default function AddItem() {
     }
   };
 
-  // const handleChangeFile = (event) => {
-  //   const file = event.target.files[0];
-  //   const formData = new FormData();
-  //   formData.append('file', file);
-
-  //   if (file) {
-  //     console.log(file);
-  //     const imageUrl = URL.createObjectURL(file);
-  //     setData((prevData) => ({
-  //       ...prevData,
-  //       blueprint: imageUrl,
-  //     }));
-
-  //     // setImgUrl(imageUrl);
-  //   }
-  // };
-
   // загрузка фото проекта
-
   const handleUpload = async (e) => {
     const file = e.target.files[0];
 
@@ -410,19 +279,10 @@ export default function AddItem() {
     } catch (err) {
       alert('Не удалось изменить файл');
     }
-    // const keys = Object.keys(data);
-    // console.log(keys);
   };
 
-  // useEffect(()=>{
-  //    onPatch()
-  // },[])
-
   const onSend = async (e) => {
-    // console.log('sss');
     e.preventDefault();
-
-    // setData([...data, item]);
 
     try {
       const payload = { ...data };
@@ -441,11 +301,13 @@ export default function AddItem() {
       console.log(err);
     }
   };
+
   useEffect(() => {
     dispatch(getGoodAPI());
     dispatch(fetchColors());
     dispatch(fetchCoating());
   }, [dispatch]);
+
   /// преобразование в массив
   const test = () => {
     const newId = newArray[newArray?.length - 1];
@@ -476,10 +338,6 @@ export default function AddItem() {
     ? categories.find((category) => String(category.id) === String(selectedCategoryId))
         ?.subcategories || []
     : subcategories;
-  // console.log(newArray);
-  // console.log(productKey);
-  // console.log(data);
-  // console.log(location);
 
   return (
     <div className={styles.addItem}>
@@ -503,22 +361,6 @@ export default function AddItem() {
           <h2 className="opacity-[60%] text-[20px]">Добавьте цвета с фото</h2>
         </h2>
         <div className="flex gap-3">
-          {/* {productKey === undefined ? (
-            <div
-              onClick={() => setColorModal(true)}
-              className="w-[50px] flex mt-[15px] text-[20px] font-bold bg-[#c5e500] cursor-pointer items-center justify-center h-[50px] border rounded-[50%]">
-              +
-            </div>
-          ) : (
-            <h1>Данные не загрузились</h1>
-          )} */}
-          {/* {data?.color.length == 0 ? (
-            <div
-              onClick={() => setColorModal(true)}
-              className="w-[50px] flex mt-[15px] text-[20px] font-bold bg-[#c5e500] cursor-pointer items-center justify-center h-[50px] border rounded-[50%]">
-              +
-            </div>
-          ) : ( */}
           {data?.color.map((item, idx) => (
             <div className="flex items-center flex-col" key={idx}>
               <div
