@@ -17,7 +17,6 @@ import { Modal } from '../contexts/Modal';
 import { scrollToElement } from '../../utils/functions';
 import Calculator from '../components/Calculator';
 import { goodsToArray } from '../utils/goods';
-import { resolveImageUrl } from '../utils/image';
 
 SwiperCore.use([Pagination]);
 
@@ -50,9 +49,7 @@ const ProductPage = () => {
   const colorList = Array.isArray(color) ? color : [];
   const colorSlides = colorList.filter((item) => item?.src);
   const fallbackSlides = [blueprint, viewImg, materialImg].filter(Boolean);
-  const slidesSource = colorSlides.length ? colorSlides.map((item) => item.src) : fallbackSlides;
-  const slides = slidesSource.map((src) => resolveImageUrl(src)).filter(Boolean);
-  const blueprintUrl = resolveImageUrl(blueprint);
+  const slides = colorSlides.length ? colorSlides.map((item) => item.src) : fallbackSlides;
   useEffect(() => {
     if (newArr.length > 0) {
       const matched = newArr.filter(
@@ -191,9 +188,9 @@ const ProductPage = () => {
                   дилеров.
                 </p>
               </div>
-              {blueprintUrl ? (
+              {blueprint?.length > 0 ? (
                 <div className="mt-5">
-                  <img src={blueprintUrl} className="w-full" alt="" />
+                  <img src={blueprint} className="w-full" alt="" />
                 </div>
               ) : null}
             </div>

@@ -15,7 +15,6 @@ import { sendmessage } from "../../utils/sendTgBot";
 import { checkCookie, scrollToElement } from "../../utils/functions";
 import { goodsToArray } from "../utils/goods";
 import { apiClient } from "../utils/api";
-import { resolveImageUrl } from "../utils/image";
 
 const Home = () => {
   const goods = useSelector((state) => state.goods.data);
@@ -277,9 +276,7 @@ const Home = () => {
                         src="/icons/Star 7.svg"
                         alt=""
                       />
-                      {item.iconUrl && (
-                        <img className="SelectsImgIcon" src={resolveImageUrl(item.iconUrl)} alt="" />
-                      )}
+                      {item.iconUrl && <img className="SelectsImgIcon" src={item.iconUrl} alt="" />}
                     </div>
                     <p>{item.name}</p>
                   </div>
@@ -297,7 +294,7 @@ const Home = () => {
                   onClick={() => navigate(`/catalog?subcategory=${item.id}`)}
                   key={item.name + idx}
                 >
-                  {item.iconUrl && <img src={resolveImageUrl(item.iconUrl)} alt="" />}
+                  {item.iconUrl && <img src={item.iconUrl} alt="" />}
                   <p>{item.name}</p>
                 </button>
               ))

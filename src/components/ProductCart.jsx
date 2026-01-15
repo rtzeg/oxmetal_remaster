@@ -30,7 +30,7 @@ const ProductCart = ({ Product, idx }) => {
   const colorIndex =
     idx == undefined || idx == -1 ? Math.floor(Math.random() * colorList.length) : idx;
   const selectedColor = colorList[colorIndex];
-  const productImage = resolveImageUrl(selectedColor?.src || fallbackImage);
+  const productImage = selectedColor?.src || fallbackImage;
 
 
   return (
