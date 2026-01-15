@@ -22,7 +22,9 @@ export default function AddItem() {
   const goods = useSelector((state) => state.goods.data);
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
+  const [categories, setCategories] = React.useState([]);
   const [subcategories, setSubcategories] = React.useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = React.useState('');
   const [selectedSubcategoryId, setSelectedSubcategoryId] = React.useState('');
 
   const navigate = useNavigate();
@@ -101,11 +103,15 @@ export default function AddItem() {
   }, [goods, productId]);
 
   useEffect(() => {
-    const loadSubcategories = async () => {
-      const { data } = await apiClient.get('/subcategories');
-      setSubcategories(data || []);
+    const loadTaxonomy = async () => {
+      const [categoriesResponse, subcategoriesResponse] = await Promise.all([
+        apiClient.get('/categories'),
+        apiClient.get('/subcategories'),
+      ]);
+      setCategories(categoriesResponse.data || []);
+      setSubcategories(subcategoriesResponse.data || []);
     };
-    loadSubcategories();
+    loadTaxonomy();
   }, []);
 
   useEffect(() => {
@@ -116,6 +122,30 @@ export default function AddItem() {
     };
     loadProductSubcategories();
   }, [productId]);
+  
+  useEffect(() => {
+    if (!categories.length) return;
+    if (selectedCategoryId) return;
+    if (data.category) {
+      const matchedCategory = categories.find(
+        (category) => category.name === data.category,
+      );
+      if (matchedCategory) {
+        setSelectedCategoryId(String(matchedCategory.id));
+        return;
+      }
+    }
+    if (selectedSubcategoryId) {
+      const owningCategory = categories.find((category) =>
+        category.subcategories?.some(
+          (subcategory) => String(subcategory.id) === String(selectedSubcategoryId),
+        ),
+      );
+      if (owningCategory) {
+        setSelectedCategoryId(String(owningCategory.id));
+      }
+    }
+  }, [categories, data.category, selectedCategoryId, selectedSubcategoryId]);
 
   // onChange для материал
   const handleMaterialChange = (event) => {
@@ -149,6 +179,31 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryChange = (event) => {
+    const value = event.target.value;
+    setSelectedCategoryId(value);
+    const selectedCategory = categories.find(
+      (category) => String(category.id) === String(value),
+    );
+    setData((prev) => ({ ...prev, category: selectedCategory?.name || '' }));
+    if (
+      selectedSubcategoryId &&
+      !selectedCategory?.subcategories?.some(
+        (subcategory) => String(subcategory.id) === String(selectedSubcategoryId),
+      )
+    ) {
+      setSelectedSubcategoryId('');
+    }
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   const handleCategoryInputChange = (event) => {
@@ -416,6 +471,11 @@ export default function AddItem() {
   const handleSubcategoryChange = (event) => {
     setSelectedSubcategoryId(event.target.value);
   };
+
+  const availableSubcategories = selectedCategoryId
+    ? categories.find((category) => String(category.id) === String(selectedCategoryId))
+        ?.subcategories || []
+    : subcategories;
   // console.log(newArray);
   // console.log(productKey);
   // console.log(data);
@@ -595,13 +655,20 @@ export default function AddItem() {
         </div>
 
         <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
-          <Input
-            placeholder="Категория"
-            value={data.category}
-            onChange={handleCategoryInputChange}
-            type="text"
-            width="40%"
-          />
+          <div className="w-[40%]">
+            <p className="opacity-[60%] text-[16px]">Категория</p>
+            <select
+              className={styles.adminSelect}
+              value={selectedCategoryId}
+              onChange={handleCategoryChange}>
+              <option value="">Выберите категорию</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <Input
             width="40%"
@@ -629,7 +696,7 @@ export default function AddItem() {
             value={selectedSubcategoryId}
             onChange={handleSubcategoryChange}>
             <option value="">Выберите подкатегорию</option>
-            {subcategories.map((subcategory) => (
+            {availableSubcategories.map((subcategory) => (
               <option key={subcategory.id} value={subcategory.id}>
                 {subcategory.name}
               </option>
