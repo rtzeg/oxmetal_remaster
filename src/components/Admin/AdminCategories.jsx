@@ -1,9 +1,6 @@
 import React from 'react';
-import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
-import { v4 } from 'uuid';
 import styles from './Admin.module.scss';
 import { apiClient } from '../../utils/api';
-import { storage } from '../../../firebase';
 
 const emptyCategory = { name: '', slug: '', iconUrl: '' };
 const emptySubcategory = { name: '', slug: '', iconUrl: '' };
@@ -19,15 +16,17 @@ export default function AdminCategories() {
   const [isCategoryUploading, setIsCategoryUploading] = React.useState(false);
   const [isSubcategoryUploading, setIsSubcategoryUploading] = React.useState(false);
 
-  const handleIconUpload = async (event, setForm, folder, setUploading) => {
+  const handleIconUpload = async (event, setForm, setUploading) => {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
-      const imgRef = sRef(storage, `${folder}/${v4()}`);
-      const snapshot = await uploadBytes(imgRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      setForm((prev) => ({ ...prev, iconUrl: url }));
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setForm((prev) => ({ ...prev, iconUrl: response.data?.url || '' }));
     } catch (error) {
       console.error('Не удалось загрузить иконку', error);
       alert('Не удалось загрузить иконку');
@@ -150,7 +149,7 @@ export default function AdminCategories() {
             type="file"
             accept="image/*"
             onChange={(event) =>
-              handleIconUpload(event, setCategoryForm, 'category-icons', setIsCategoryUploading)
+              handleIconUpload(event, setCategoryForm, setIsCategoryUploading)
             }
           />
           {categoryForm.iconUrl && (
@@ -215,7 +214,7 @@ export default function AdminCategories() {
                     type="file"
                     accept="image/*"
                     onChange={(event) =>
-                      handleIconUpload(event, setCategoryForm, 'category-icons', setIsCategoryUploading)
+                      handleIconUpload(event, setCategoryForm, setIsCategoryUploading)
                     }
                   />
                   {categoryForm.iconUrl && (
@@ -300,12 +299,7 @@ export default function AdminCategories() {
             type="file"
             accept="image/*"
             onChange={(event) =>
-              handleIconUpload(
-                event,
-                setSubcategoryForm,
-                'subcategory-icons',
-                setIsSubcategoryUploading,
-              )
+              handleIconUpload(event, setSubcategoryForm, setIsSubcategoryUploading)
             }
           />
           {subcategoryForm.iconUrl && (
@@ -372,12 +366,7 @@ export default function AdminCategories() {
                     type="file"
                     accept="image/*"
                     onChange={(event) =>
-                      handleIconUpload(
-                        event,
-                        setSubcategoryForm,
-                        'subcategory-icons',
-                        setIsSubcategoryUploading,
-                      )
+                      handleIconUpload(event, setSubcategoryForm, setIsSubcategoryUploading)
                     }
                   />
                   {subcategoryForm.iconUrl && (

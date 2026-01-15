@@ -1,15 +1,19 @@
 import json
 import os
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("PRODUCTS_DB_PATH", BASE_DIR / "products.db"))
+UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -282,11 +286,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+
+
+@app.post("/uploads")
+async def upload_file(request: Request, file: UploadFile = File(...)) -> dict:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    suffix = Path(file.filename).suffix
+    file_name = f"{uuid.uuid4().hex}{suffix}"
+    destination = UPLOADS_DIR / file_name
+    with destination.open("wb") as buffer:
+        buffer.write(await file.read())
+    return {"url": str(request.base_url).rstrip("/") + f"/uploads/{file_name}"}
 
 
 def row_to_product(row: sqlite3.Row) -> Product:

@@ -7,10 +7,7 @@ import Coating from './Coating';
 import Input from './Input';
 import { useDispatch, useSelector } from 'react-redux';
 import { getGoodAPI } from '../../features/goods/thunk';
-import { storage } from '../../../firebase';
-import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
 import { useNavigate, useParams } from 'react-router-dom';
-import { v4 } from 'uuid';
 import { apiClient } from '../../utils/api';
 import { fetchColors } from '../../features/colorsSlice';
 import ColorModal from './ColorModal';
@@ -26,7 +23,7 @@ export default function AddItem() {
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
   const [subcategories, setSubcategories] = React.useState([]);
-  const [selectedSubcategories, setSelectedSubcategories] = React.useState([]);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = React.useState('');
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -115,7 +112,7 @@ export default function AddItem() {
     const loadProductSubcategories = async () => {
       if (!productId) return;
       const { data } = await apiClient.get(`/products/${productId}/subcategories`);
-      setSelectedSubcategories((data || []).map((item) => item.id));
+      setSelectedSubcategoryId(data?.[0]?.id ? String(data[0].id) : '');
     };
     loadProductSubcategories();
   }, [productId]);
@@ -152,6 +149,18 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryInputChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   const handleCategoryInputChange = (event) => {
@@ -304,29 +313,29 @@ export default function AddItem() {
 
   // загрузка фото проекта
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     const file = e.target.files[0];
 
     if (!file) {
       console.error('Файл не выбран');
+      return;
     }
 
-    const imgRef = sRef(storage, `blueprints/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            blueprint: val,
-          }));
-          setImg(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+      const url = response.data?.url || '';
+      setData((prevData) => ({
+        ...prevData,
+        blueprint: url,
+      }));
+      setImg(url);
+    } catch (error) {
+      console.error('Ошибка при загрузке файла', error);
+    }
   };
 
   const onPatch = async (e) => {
@@ -338,7 +347,7 @@ export default function AddItem() {
       delete payload.key;
       await apiClient.put(`/products/${currentId}`, payload);
       await apiClient.put(`/products/${currentId}/subcategories`, {
-        subcategory_ids: selectedSubcategories,
+        subcategory_ids: selectedSubcategoryId ? [Number(selectedSubcategoryId)] : [],
       });
       alert('Изменено');
 
@@ -367,7 +376,7 @@ export default function AddItem() {
       const createdId = response?.data?.id;
       if (createdId) {
         await apiClient.put(`/products/${createdId}/subcategories`, {
-          subcategory_ids: selectedSubcategories,
+          subcategory_ids: selectedSubcategoryId ? [Number(selectedSubcategoryId)] : [],
         });
       }
       alert('Добавлено');
@@ -404,10 +413,8 @@ export default function AddItem() {
     }
   };
 
-  const toggleSubcategory = (id) => {
-    setSelectedSubcategories((prev) =>
-      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
-    );
+  const handleSubcategoryChange = (event) => {
+    setSelectedSubcategoryId(event.target.value);
   };
   // console.log(newArray);
   // console.log(productKey);
@@ -616,19 +623,18 @@ export default function AddItem() {
         </div>
 
         <div className={`${styles.formRow} flex flex-col mt-[25px]`}>
-          <p className="opacity-[60%] text-[16px]">Подкатегории</p>
-          <div className="flex flex-wrap gap-3">
+          <p className="opacity-[60%] text-[16px]">Подкатегория</p>
+          <select
+            className={styles.adminSelect}
+            value={selectedSubcategoryId}
+            onChange={handleSubcategoryChange}>
+            <option value="">Выберите подкатегорию</option>
             {subcategories.map((subcategory) => (
-              <label key={subcategory.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedSubcategories.includes(subcategory.id)}
-                  onChange={() => toggleSubcategory(subcategory.id)}
-                />
-                <span>{subcategory.name}</span>
-              </label>
+              <option key={subcategory.id} value={subcategory.id}>
+                {subcategory.name}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         {productId ? (
