@@ -1,8 +1,10 @@
 import json
 import os
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -10,9 +12,16 @@ FIREBASE_BASE_URL = os.environ.get(
     "FIREBASE_BASE_URL",
     "https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app",
 )
+FIREBASE_ASSET_BASE_URL = os.environ.get(
+    "FIREBASE_ASSET_BASE_URL",
+    "https://oxmetal-49832.web.app",
+)
+UPLOADS_BASE_URL = os.environ.get("UPLOADS_BASE_URL", "http://localhost:8000/uploads")
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("PRODUCTS_DB_PATH", BASE_DIR / "products.db"))
+UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -156,6 +165,45 @@ def normalize_color_item(item: Any, palette: dict[str, dict[str, Any]]) -> dict[
     return {"RGBA": None, "color": None, "name": None, "src": None}
 
 
+def resolve_asset_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"}:
+        return value
+    if value.startswith("/"):
+        return urljoin(FIREBASE_ASSET_BASE_URL.rstrip("/") + "/", value.lstrip("/"))
+    return None
+
+
+def download_asset(
+    session: requests.Session, url: str | None, cache: dict[str, str]
+) -> str | None:
+    resolved_url = resolve_asset_url(url)
+    if not resolved_url:
+        return None
+    if resolved_url in cache:
+        return cache[resolved_url]
+    try:
+        response = session.get(resolved_url, timeout=60)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"Failed to download asset: {resolved_url} ({exc})")
+        cache[resolved_url] = None
+        return None
+    content_type = response.headers.get("content-type", "")
+    suffix = Path(urlparse(resolved_url).path).suffix
+    if not suffix and "image" in content_type:
+        suffix = f".{content_type.split('/')[-1]}"
+    filename = f"{uuid.uuid4().hex}{suffix}"
+    destination = UPLOADS_DIR / filename
+    with destination.open("wb") as buffer:
+        buffer.write(response.content)
+    public_url = f"{UPLOADS_BASE_URL.rstrip('/')}/{filename}"
+    cache[resolved_url] = public_url
+    return public_url
+
+
 def normalize_taxonomy_name(value: Any) -> str | None:
     if value is None:
         return None
@@ -249,9 +297,25 @@ def migrate_products(
     products: list[dict[str, Any]],
     palette: dict[str, dict[str, Any]],
 ) -> None:
+    session = requests.Session()
+    cache: dict[str, str] = {}
     for product in products:
         raw_colors = product.get("color") or []
         colors = [normalize_color_item(item, palette) for item in raw_colors]
+        for color_item in colors:
+            color_item["src"] = download_asset(session, color_item.get("src"), cache)
+        blueprint_url = product.get("blueprint") or product.get("img")
+        blueprint = download_asset(session, blueprint_url, cache)
+        material_img = download_asset(
+            session,
+            product.get("materialImg") or product.get("material_img"),
+            cache,
+        )
+        view_img = download_asset(
+            session,
+            product.get("viewImg") or product.get("view_img"),
+            cache,
+        )
         payload = {
             "name": product.get("name"),
             "material": product.get("material") or "",
@@ -266,9 +330,9 @@ def migrate_products(
             "calcwidth": product.get("calcwidth"),
             "coating": product.get("coating"),
             "color_json": json.dumps(colors),
-            "blueprint": product.get("blueprint"),
-            "material_img": product.get("materialImg"),
-            "view_img": product.get("viewImg"),
+            "blueprint": blueprint,
+            "material_img": material_img,
+            "view_img": view_img,
         }
         product_id = product.get("id")
         if isinstance(product_id, int):
@@ -361,8 +425,8 @@ def migrate_products(
             current_product_id = cursor.lastrowid
         category_name = product.get("view") or product.get("category")
         subcategory_name = product.get("material")
-        category_icon = product.get("viewImg") or product.get("view_img")
-        subcategory_icon = product.get("materialImg") or product.get("material_img")
+        category_icon = view_img
+        subcategory_icon = material_img
         if category_name:
             category_id = get_or_create_category(connection, str(category_name), category_icon)
         else:
