@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"; 
-import axios from "axios";
+import { apiClient } from "../utils/api";
 
 
 export const fetchCoating = createAsyncThunk('getGoodAPI/coating', async()=>{
-  const {data} = await axios.get("https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Coating.json");
-  return data;
+  const {data} = await apiClient.get("/coatings");
+  return data.map((item) => item.name);
 })
 
 
