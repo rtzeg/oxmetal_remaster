@@ -16,6 +16,7 @@ import { FreeMode, Navigation, Thumbs, Pagination } from 'swiper/modules';
 import { Modal } from '../contexts/Modal';
 import { scrollToElement } from '../../utils/functions';
 import Calculator from '../components/Calculator';
+import { goodsToArray } from '../utils/goods';
 
 SwiperCore.use([Pagination]);
 
@@ -23,7 +24,7 @@ const ProductPage = () => {
   let { ProductId } = useParams();
   console.log(ProductId);
   const goods = useSelector((state) => state.goods.data);
-  const newArr = Object.values(goods);
+  const newArr = goodsToArray(goods);
   const [Prodict, setProdict] = useState([]);
   const [ProductItem, setProductItem] = useState({});
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
@@ -31,12 +32,31 @@ const ProductPage = () => {
   const [Coating, setCoating] = useState([]);
   const [Sizes, setSizes] = useState([]);
   const { OpenModal, setOpenModal } = useContext(Modal);
-  const { material, tipes, coating, color, sizes, view, price, Guarantee, name, blueprint } =
-    ProductItem;
+  const {
+    material,
+    tipes,
+    coating,
+    color,
+    sizes,
+    view,
+    price,
+    Guarantee,
+    name,
+    blueprint,
+    viewImg,
+    materialImg,
+  } = ProductItem;
+  const colorList = Array.isArray(color) ? color : [];
+  const colorSlides = colorList.filter((item) => item?.src);
+  const fallbackSlides = [blueprint, viewImg, materialImg].filter(Boolean);
+  const slides = colorSlides.length ? colorSlides.map((item) => item.src) : fallbackSlides;
   useEffect(() => {
     if (newArr.length > 0) {
-      setProdict([...newArr.filter((i) => i.key == ProductId)]);
-      setProductItem([...newArr.filter((i) => i.key == ProductId)][0]);
+      const matched = newArr.filter(
+        (i) => String(i.id ?? i.key) === String(ProductId),
+      );
+      setProdict([...matched]);
+      setProductItem(matched[0]);
 
       let arr = newArr.filter((i) => i.material === material && i.tipes === tipes);
       let Uniq = [];
@@ -67,17 +87,18 @@ const ProductPage = () => {
     el: '.CreateColors',
     clickable: true,
     renderBullet: function (index, className) {
-      return `<div class="${className} " style = "background-color: ${color[index]?.color} ;  display: block !important ;   box-shadow: 0px 1px 5px black; " name="${color[index].name}"  > <p class="ralColor">${color[index].RGBA}</p> </div> `;
+      const item = colorList[index] || {};
+      return `<div class="${className} " style = "background-color: ${item?.color || '#ccc'} ;  display: block !important ;   box-shadow: 0px 1px 5px black; " name="${item?.name || ''}"  > <p class="ralColor">${item?.RGBA || ''}</p> </div> `;
     },
   };
   function handleSlideChange(swiper) {
-    let activeSlideObj = color[swiper.activeIndex];
-    setRAl(activeSlideObj.RGBA);
+    let activeSlideObj = colorList[swiper.activeIndex];
+    setRAl(activeSlideObj?.RGBA || '');
   }
   const handleItemClick = (swiper) => {
     swiper.activeIndex = 0;
-    let activeSlideObj = color[0];
-    setRAl(activeSlideObj.RGBA);
+    let activeSlideObj = colorList[0];
+    setRAl(activeSlideObj?.RGBA || '');
   };
 
   useEffect(() => {
@@ -118,7 +139,7 @@ const ProductPage = () => {
             </Link>
           </p>
           <h1 className="text-4xl font-bold mt-5 lg:text-2xl">
-            {material} {tipes} ({coating}-<span>{color.length === 1 ? color[0].RGBA : RAl}</span>-
+            {material} {tipes} ({coating}-<span>{colorList.length === 1 ? colorList[0].RGBA : RAl}</span>-
             {sizes})
           </h1>
           <div className="flex gap-8 mt-5 relative lg:flex-col pb-10">
@@ -137,9 +158,9 @@ const ProductPage = () => {
                   className="mySwiper2 exl:max-h-[500px]"
                   onSlideChange={handleSlideChange}
                   onSwiper={handleItemClick}>
-                  {color.map((item, idx) => (
+                  {slides.map((src, idx) => (
                     <SwiperSlide key={idx} className="h-full">
-                      <img src={item.src} className=" object-cover" />
+                      <img src={src} className=" object-cover" />
                     </SwiperSlide>
                   ))}
                 </Swiper>
@@ -152,9 +173,9 @@ const ProductPage = () => {
                   watchSlidesProgress={true}
                   modules={[FreeMode, Navigation, Thumbs]}
                   className="mySwiper max-h-[500px] ">
-                  {color.map((item, idx) => (
+                  {slides.map((src, idx) => (
                     <SwiperSlide key={idx}>
-                      <img src={item.src} />
+                      <img src={src} />
                     </SwiperSlide>
                   ))}
                 </Swiper>
@@ -167,7 +188,7 @@ const ProductPage = () => {
                   дилеров.
                 </p>
               </div>
-              {blueprint.length > 0 ? (
+              {blueprint?.length > 0 ? (
                 <div className="mt-5">
                   <img src={blueprint} className="w-full" alt="" />
                 </div>
@@ -189,7 +210,7 @@ const ProductPage = () => {
                 <div className="coatingCont">
                   {Coating.map((item, idx) => (
                     <Link
-                      to={'/product/' + item.key}
+                      to={'/product/' + (item.id ?? item.key)}
                       key={item.coating + idx + item.idx}
                       onClick={() => {
                         handleItemClick();
@@ -241,7 +262,7 @@ const ProductPage = () => {
                 <div className="coatingCont">
                   {Sizes.map((item, idx) => (
                     <Link
-                      to={'/product/' + item.key}
+                      to={'/product/' + (item.id ?? item.key)}
                       key={item.sizes + idx + item.idx}
                       onClick={() => {
                         scrollToElement('product');

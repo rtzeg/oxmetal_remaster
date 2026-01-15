@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import styles from './Admin.module.scss';
 import { aaa } from '../arr';
 import { coat } from '../arr';
@@ -6,45 +6,37 @@ import AdminColors from './AdminColors';
 import Coating from './Coating';
 import Input from './Input';
 import { useDispatch, useSelector } from 'react-redux';
-import { getGoodAPI, pathGoodAPI, postGoodAPI } from '../../features/goods/thunk';
-import { db } from '../../../firebase';
-import { storage } from '../../../firebase';
-import { ref, set, push, update } from 'firebase/database';
-import { getDownloadURL, ref as sRef } from 'firebase/storage';
-import { getStorage, listAll, uploadBytes } from 'firebase/storage';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { v4 } from 'uuid';
-import axios from 'axios';
-import { fetchColors, getColor } from '../../features/colorsSlice';
+import { getGoodAPI } from '../../features/goods/thunk';
+import { useNavigate, useParams } from 'react-router-dom';
+import { apiClient } from '../../utils/api';
+import { fetchColors } from '../../features/colorsSlice';
 import ColorModal from './ColorModal';
 import CoatingModal from './CoatingModal';
 import { fetchCoating } from '../../features/coatingSlice';
+import { goodsToArray } from '../../utils/goods';
 
 export default function AddItem() {
-  const { productKey, productIndex } = useParams();
+  const { productId } = useParams();
 
   const [product, setProduct] = React.useState([]);
-  const location = useLocation();
   const goods = useSelector((state) => state.goods.data);
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
+  const [subcategories, setSubcategories] = React.useState([]);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = React.useState('');
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const inputRef = React.useRef(null);
-  const iconRef = React.useRef(null);
-  const materialRef = React.useRef(null);
   const [pathData, setPathData] = React.useState([]);
   const [img, setImg] = React.useState('');
-  const [iconUrl, setIconUrl] = React.useState('');
-  const [materialUrl, setMaterialUrl] = React.useState('');
   const [activeColor, setActiveColor] = React.useState(null);
   const [activeCoat, setActiveCoat] = React.useState();
   const [colorModal, setColorModal] = React.useState(false);
   const [addNewColorModal, setAddNewColorModal] = React.useState(false);
   const [isCoatingModal, setIsCoatingModal] = React.useState(false);
   const [showNewDiv, setShowNewDiv] = React.useState(true);
-  const newArray = Object.values(goods);
+  const newArray = goodsToArray(goods);
   const newColors = Object.values(colors);
 
   const newCoating = Object.values(coating);
@@ -60,6 +52,9 @@ export default function AddItem() {
     material: '',
     materialImg: '',
     name: '',
+    category: '',
+    profile: '',
+    thickness: '',
     price: Number,
     sizes: '',
     tipes: '',
@@ -68,8 +63,8 @@ export default function AddItem() {
   });
 
   useEffect(() => {
-    if (productKey !== undefined) {
-      setProduct([...newArray.filter((i) => i.key == productKey)]);
+    if (productId !== undefined) {
+      setProduct([...newArray.filter((i) => String(i.id ?? i.key) == String(productId))]);
       setData((prev) => ({
         ...prev,
         Guarantee: product[0]?.Guarantee,
@@ -83,14 +78,15 @@ export default function AddItem() {
         blueprint: product[0]?.blueprint,
         materialImg: product[0]?.materialImg,
         //   name: product[0]?.name,
+        category: product[0]?.category,
+        profile: product[0]?.profile,
+        thickness: product[0]?.thickness,
         sizes: product[0]?.sizes,
         tipes: product[0]?.tipes,
         view: product[0]?.view,
         viewImg: product[0]?.viewImg,
       }));
       setImg(product[0]?.blueprint);
-      setIconUrl(product[0]?.viewImg);
-      setMaterialUrl(product[0]?.materialImg);
       const selectedIndexOfCoat = coat.indexOf(product[0]?.coating);
       product[0]?.color.map((item) =>
         setData((prev) => ({ ...prev, color: [...prev.color, item] })),
@@ -102,7 +98,24 @@ export default function AddItem() {
       // console.log(product[0]?.color);
       // console.log(product[0]);
     }
-  }, [goods, productKey]);
+  }, [goods, productId]);
+
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      const { data } = await apiClient.get('/subcategories');
+      setSubcategories(data || []);
+    };
+    loadSubcategories();
+  }, []);
+
+  useEffect(() => {
+    const loadProductSubcategories = async () => {
+      if (!productId) return;
+      const { data } = await apiClient.get(`/products/${productId}/subcategories`);
+      setSelectedSubcategoryId(data?.[0]?.id ? String(data[0].id) : '');
+    };
+    loadProductSubcategories();
+  }, [productId]);
 
   // onChange для материал
   const handleMaterialChange = (event) => {
@@ -138,6 +151,18 @@ export default function AddItem() {
     setData({ ...data, name: event.target.value });
   };
 
+  const handleCategoryInputChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
   // onChange для data.Guarantee
   const handleGuaranteeChange = (event) => {
     const value = event.target.value.trim() !== '' ? parseFloat(event.target.value) : null;
@@ -156,28 +181,16 @@ export default function AddItem() {
     inputRef.current.click();
   }
 
-  function onIconFocus(e) {
-    e.preventDefault();
-    iconRef.current.click();
-  }
-  function onMaterialFocus(e) {
-    e.preventDefault();
-    materialRef.current.click();
-  }
-
-  const addSelectColor = (data) => {
-    event.preventDefault();
-
-    const newDocRef = ref(db, 'Products');
-
-    const productRef = push(newDocRef);
-    if (data.src === '' || data.color.length === 0) {
+  const addSelectColor = (colorData, event) => {
+    if (event) {
+      event.preventDefault();
+    }
+    if (colorData.src === '' || colorData.color.length === 0) {
       alert('Добавьте фото и цвет');
     } else {
       setData((prev) => ({
         ...prev,
-        color: [...prev.color, data],
-        key: productRef.key,
+        color: [...prev.color, colorData],
       }));
       setShowNewDiv(true);
       setColorModal(false);
@@ -204,90 +217,42 @@ export default function AddItem() {
 
   // загрузка фото проекта
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     const file = e.target.files[0];
 
     if (!file) {
       console.error('Файл не выбран');
+      return;
     }
 
-    const imgRef = sRef(storage, `blueprints/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            blueprint: val,
-          }));
-          setImg(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-  };
-
-  const handleChangeViewImg = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) {
-      console.error('Файл не выбран');
+      const url = response.data?.url || '';
+      setData((prevData) => ({
+        ...prevData,
+        blueprint: url,
+      }));
+      setImg(url);
+    } catch (error) {
+      console.error('Ошибка при загрузке файла', error);
     }
-
-    const imgRef = sRef(storage, `selection/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            viewImg: val,
-          }));
-          setIconUrl(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
-      });
-  };
-
-  const handleChangeMaterialIcon = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) {
-      console.error('Файл не выбран');
-    }
-
-    const imgRef = sRef(storage, `icons/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        console.log('Файл успешно загружен', snapshot);
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            materialImg: val,
-          }));
-          setMaterialUrl(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
-      });
   };
 
   const onPatch = async (e) => {
     e.preventDefault();
 
     try {
-      await axios.patch(
-        `https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Products/${productIndex}.json`,
-        data,
-      );
+      const currentId = productId;
+      const payload = { ...data };
+      delete payload.key;
+      await apiClient.put(`/products/${currentId}`, payload);
+      await apiClient.put(`/products/${currentId}/subcategories`, {
+        subcategory_ids: selectedSubcategoryId ? [Number(selectedSubcategoryId)] : [],
+      });
       alert('Изменено');
 
       navigate('/admin/control');
@@ -308,10 +273,16 @@ export default function AddItem() {
 
     // setData([...data, item]);
 
-    const newDocRef = ref(db, 'Products');
-
     try {
-      await push(newDocRef, data);
+      const payload = { ...data };
+      delete payload.key;
+      const response = await apiClient.post('/products', payload);
+      const createdId = response?.data?.id;
+      if (createdId) {
+        await apiClient.put(`/products/${createdId}/subcategories`, {
+          subcategory_ids: selectedSubcategoryId ? [Number(selectedSubcategoryId)] : [],
+        });
+      }
       alert('Добавлено');
 
       navigate('/admin/control');
@@ -333,8 +304,10 @@ export default function AddItem() {
       id: newId?.id + 1,
     }));
   };
-  const onDeleteColor = (id) => {
-    event.preventDefault();
+  const onDeleteColor = (id, event) => {
+    if (event) {
+      event.preventDefault();
+    }
     if (confirm('Вы действительно хотите удалить цвет')) {
       const filtred = data.color.filter((item) => item.color !== id);
       setData((prev) => ({
@@ -342,6 +315,10 @@ export default function AddItem() {
         color: filtred,
       }));
     }
+  };
+
+  const handleSubcategoryChange = (event) => {
+    setSelectedSubcategoryId(event.target.value);
   };
   // console.log(newArray);
   // console.log(productKey);
@@ -354,7 +331,7 @@ export default function AddItem() {
         {/* добавить название */}
 
         {/* добавить фото */}
-        <div className="flex items-center py-2">
+        <div className={`${styles.formRow} flex items-center py-2`}>
           <div className="button w-[170px] h-[70px] flex items-center justify-center">
             <button onClick={onFocus}>Фото чертежа</button>
           </div>
@@ -398,7 +375,7 @@ export default function AddItem() {
                   cursor: 'pointer',
                 }}></div>
               <button
-                onClick={() => onDeleteColor(item.color)}
+                onClick={(event) => onDeleteColor(item.color, event)}
                 className="w-[35px] flex mt-[15px] text-[20px] font-bold bg-[#c5e500] cursor-pointer items-center justify-center h-[35px] border rounded-[50%]">
                 x
               </button>
@@ -445,16 +422,7 @@ export default function AddItem() {
           setIsCoatingModal={setIsCoatingModal}
         />
 
-        <div className="flex items-center py-2">
-          <div className="button w-[170px] h-[70px] flex items-center justify-center">
-            <button onClick={onIconFocus}>Фото вида</button>
-          </div>
-          {iconUrl && <img className="w-[250px] h-[150px] ml-4" src={iconUrl} alt="иконка" />}
-          <input ref={iconRef} onChange={(e) => handleChangeViewImg(e)} type="file" hidden />
-          {/* <img src="/icons/profIcon.svg" alt="" /> */}
-        </div>
-
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* материал */}
           <Input
             placeholder="Материал"
@@ -472,7 +440,7 @@ export default function AddItem() {
             width="40%"
           />
         </div>
-        <div className="flex justify-between items-center">
+        <div className={`${styles.formRow} flex justify-between items-center`}>
           {' '}
           {/* цена */}
           <Input
@@ -492,7 +460,7 @@ export default function AddItem() {
             type="number"
           />
         </div>
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* размер */}
 
           <Input
@@ -513,7 +481,7 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex justify-between mt-[25px]">
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           <Input
             placeholder="Имя (не обязательно поле)"
             onChange={handleNameChange}
@@ -530,22 +498,50 @@ export default function AddItem() {
           />
         </div>
 
-        <div className="flex items-center py-2">
-          <div className="button w-[170px] h-[70px] flex items-center justify-center">
-            <button onClick={onMaterialFocus}>иконка материала</button>
-          </div>
-          {materialUrl && (
-            <img className="w-[250px] h-[150px] ml-4" src={materialUrl} alt="материал" />
-          )}
-          <input
-            ref={materialRef}
-            onChange={(e) => handleChangeMaterialIcon(e)}
-            type="file"
-            hidden
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Категория"
+            value={data.category}
+            onChange={handleCategoryInputChange}
+            type="text"
+            width="40%"
+          />
+
+          <Input
+            width="40%"
+            value={data.profile}
+            onChange={handleProfileChange}
+            placeholder="Профиль"
+            type="text"
           />
         </div>
 
-        {productKey ? (
+        <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
+          <Input
+            placeholder="Толщина/модель"
+            value={data.thickness}
+            onChange={handleThicknessChange}
+            type="text"
+            width="40%"
+          />
+        </div>
+
+        <div className={`${styles.formRow} flex flex-col mt-[25px]`}>
+          <p className="opacity-[60%] text-[16px]">Подкатегория</p>
+          <select
+            className={styles.adminSelect}
+            value={selectedSubcategoryId}
+            onChange={handleSubcategoryChange}>
+            <option value="">Выберите подкатегорию</option>
+            {subcategories.map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.id}>
+                {subcategory.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {productId ? (
           <div className="flex items-center py-2">
             <div className="button w-[170px] h-[70px] flex items-center justify-center">
               <button onClick={onPatch}>Изменить</button>
