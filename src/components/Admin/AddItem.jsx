@@ -31,12 +31,8 @@ export default function AddItem() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const inputRef = React.useRef(null);
-  const iconRef = React.useRef(null);
-  const materialRef = React.useRef(null);
   const [pathData, setPathData] = React.useState([]);
   const [img, setImg] = React.useState('');
-  const [iconUrl, setIconUrl] = React.useState('');
-  const [materialUrl, setMaterialUrl] = React.useState('');
   const [activeColor, setActiveColor] = React.useState(null);
   const [activeCoat, setActiveCoat] = React.useState();
   const [colorModal, setColorModal] = React.useState(false);
@@ -94,8 +90,6 @@ export default function AddItem() {
         viewImg: product[0]?.viewImg,
       }));
       setImg(product[0]?.blueprint);
-      setIconUrl(product[0]?.viewImg);
-      setMaterialUrl(product[0]?.materialImg);
       const selectedIndexOfCoat = coat.indexOf(product[0]?.coating);
       product[0]?.color.map((item) =>
         setData((prev) => ({ ...prev, color: [...prev.color, item] })),
@@ -158,6 +152,18 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryInputChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   const handleCategoryInputChange = (event) => {
@@ -262,15 +268,6 @@ export default function AddItem() {
     inputRef.current.click();
   }
 
-  function onIconFocus(e) {
-    e.preventDefault();
-    iconRef.current.click();
-  }
-  function onMaterialFocus(e) {
-    e.preventDefault();
-    materialRef.current.click();
-  }
-
   const addSelectColor = (colorData, event) => {
     if (event) {
       event.preventDefault();
@@ -325,57 +322,6 @@ export default function AddItem() {
             blueprint: val,
           }));
           setImg(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
-      });
-  };
-
-  const handleChangeViewImg = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) {
-      console.error('Файл не выбран');
-    }
-
-    const imgRef = sRef(storage, `selection/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            viewImg: val,
-          }));
-          setIconUrl(val);
-        });
-      })
-      .catch((error) => {
-        console.error('Ошибка при загрузке файла', error);
-      });
-  };
-
-  const handleChangeMaterialIcon = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) {
-      console.error('Файл не выбран');
-    }
-
-    const imgRef = sRef(storage, `icons/${v4()}`);
-
-    // Загружаем файл в хранилище
-    uploadBytes(imgRef, file)
-      .then((snapshot) => {
-        console.log('Файл успешно загружен', snapshot);
-        getDownloadURL(snapshot.ref).then((val) => {
-          setData((prevData) => ({
-            ...prevData,
-            materialImg: val,
-          }));
-          setMaterialUrl(val);
         });
       })
       .catch((error) => {
@@ -565,15 +511,6 @@ export default function AddItem() {
           setIsCoatingModal={setIsCoatingModal}
         />
 
-        <div className={`${styles.formRow} flex items-center py-2`}>
-          <div className="button w-[170px] h-[70px] flex items-center justify-center">
-            <button onClick={onIconFocus}>Фото вида</button>
-          </div>
-          {iconUrl && <img className="w-[250px] h-[150px] ml-4" src={iconUrl} alt="иконка" />}
-          <input ref={iconRef} onChange={(e) => handleChangeViewImg(e)} type="file" hidden />
-          {/* <img src="/icons/profIcon.svg" alt="" /> */}
-        </div>
-
         <div className={`${styles.formRow} flex justify-between mt-[25px]`}>
           {/* материал */}
           <Input
@@ -692,21 +629,6 @@ export default function AddItem() {
               </label>
             ))}
           </div>
-        </div>
-
-        <div className={`${styles.formRow} flex items-center py-2`}>
-          <div className="button w-[170px] h-[70px] flex items-center justify-center">
-            <button onClick={onMaterialFocus}>иконка материала</button>
-          </div>
-          {materialUrl && (
-            <img className="w-[250px] h-[150px] ml-4" src={materialUrl} alt="материал" />
-          )}
-          <input
-            ref={materialRef}
-            onChange={(e) => handleChangeMaterialIcon(e)}
-            type="file"
-            hidden
-          />
         </div>
 
         {productId ? (

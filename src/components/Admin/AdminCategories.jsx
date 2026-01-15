@@ -16,15 +16,25 @@ export default function AdminCategories() {
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
   const [editingSubcategoryId, setEditingSubcategoryId] = React.useState(null);
   const [linkSelections, setLinkSelections] = React.useState({});
+  const [isCategoryUploading, setIsCategoryUploading] = React.useState(false);
+  const [isSubcategoryUploading, setIsSubcategoryUploading] = React.useState(false);
 
-  const handleIconUpload = async (event, setForm, folder) => {
+  const handleIconUpload = async (event, setForm, folder, setUploading) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const imgRef = sRef(storage, `${folder}/${v4()}`);
-    const snapshot = await uploadBytes(imgRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    setForm((prev) => ({ ...prev, iconUrl: url }));
-    event.target.value = '';
+    setUploading(true);
+    try {
+      const imgRef = sRef(storage, `${folder}/${v4()}`);
+      const snapshot = await uploadBytes(imgRef, file);
+      const url = await getDownloadURL(snapshot.ref);
+      setForm((prev) => ({ ...prev, iconUrl: url }));
+    } catch (error) {
+      console.error('Не удалось загрузить иконку', error);
+      alert('Не удалось загрузить иконку');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
   };
 
   const fetchData = React.useCallback(async () => {
@@ -42,6 +52,7 @@ export default function AdminCategories() {
 
   const handleCreateCategory = async (event) => {
     event.preventDefault();
+    if (isCategoryUploading) return;
     await apiClient.post('/categories', categoryForm);
     setCategoryForm(emptyCategory);
     fetchData();
@@ -49,6 +60,7 @@ export default function AdminCategories() {
 
   const handleCreateSubcategory = async (event) => {
     event.preventDefault();
+    if (isSubcategoryUploading) return;
     await apiClient.post('/subcategories', subcategoryForm);
     setSubcategoryForm(emptySubcategory);
     fetchData();
@@ -56,6 +68,7 @@ export default function AdminCategories() {
 
   const handleEditCategory = async (event, id) => {
     event.preventDefault();
+    if (isCategoryUploading) return;
     await apiClient.put(`/categories/${id}`, categoryForm);
     setEditingCategoryId(null);
     setCategoryForm(emptyCategory);
@@ -64,6 +77,7 @@ export default function AdminCategories() {
 
   const handleEditSubcategory = async (event, id) => {
     event.preventDefault();
+    if (isSubcategoryUploading) return;
     await apiClient.put(`/subcategories/${id}`, subcategoryForm);
     setEditingSubcategoryId(null);
     setSubcategoryForm(emptySubcategory);
@@ -135,7 +149,9 @@ export default function AdminCategories() {
             className={styles.adminInput}
             type="file"
             accept="image/*"
-            onChange={(event) => handleIconUpload(event, setCategoryForm, 'category-icons')}
+            onChange={(event) =>
+              handleIconUpload(event, setCategoryForm, 'category-icons', setIsCategoryUploading)
+            }
           />
           {categoryForm.iconUrl && (
             <img
@@ -144,8 +160,8 @@ export default function AdminCategories() {
               alt="preview"
             />
           )}
-          <button className="button" type="submit">
-            Добавить категорию
+          <button className="button" type="submit" disabled={isCategoryUploading}>
+            {isCategoryUploading ? 'Загрузка...' : 'Добавить категорию'}
           </button>
         </form>
 
@@ -198,7 +214,9 @@ export default function AdminCategories() {
                     className={styles.adminInput}
                     type="file"
                     accept="image/*"
-                    onChange={(event) => handleIconUpload(event, setCategoryForm, 'category-icons')}
+                    onChange={(event) =>
+                      handleIconUpload(event, setCategoryForm, 'category-icons', setIsCategoryUploading)
+                    }
                   />
                   {categoryForm.iconUrl && (
                     <img
@@ -207,8 +225,8 @@ export default function AdminCategories() {
                       alt="preview"
                     />
                   )}
-                  <button className="button" type="submit">
-                    Сохранить
+                  <button className="button" type="submit" disabled={isCategoryUploading}>
+                    {isCategoryUploading ? 'Загрузка...' : 'Сохранить'}
                   </button>
                 </form>
               )}
@@ -281,7 +299,14 @@ export default function AdminCategories() {
             className={styles.adminInput}
             type="file"
             accept="image/*"
-            onChange={(event) => handleIconUpload(event, setSubcategoryForm, 'subcategory-icons')}
+            onChange={(event) =>
+              handleIconUpload(
+                event,
+                setSubcategoryForm,
+                'subcategory-icons',
+                setIsSubcategoryUploading,
+              )
+            }
           />
           {subcategoryForm.iconUrl && (
             <img
@@ -290,8 +315,8 @@ export default function AdminCategories() {
               alt="preview"
             />
           )}
-          <button className="button" type="submit">
-            Добавить подкатегорию
+          <button className="button" type="submit" disabled={isSubcategoryUploading}>
+            {isSubcategoryUploading ? 'Загрузка...' : 'Добавить подкатегорию'}
           </button>
         </form>
 
@@ -347,7 +372,12 @@ export default function AdminCategories() {
                     type="file"
                     accept="image/*"
                     onChange={(event) =>
-                      handleIconUpload(event, setSubcategoryForm, 'subcategory-icons')
+                      handleIconUpload(
+                        event,
+                        setSubcategoryForm,
+                        'subcategory-icons',
+                        setIsSubcategoryUploading,
+                      )
                     }
                   />
                   {subcategoryForm.iconUrl && (
@@ -357,8 +387,8 @@ export default function AdminCategories() {
                       alt="preview"
                     />
                   )}
-                  <button className="button" type="submit">
-                    Сохранить
+                  <button className="button" type="submit" disabled={isSubcategoryUploading}>
+                    {isSubcategoryUploading ? 'Загрузка...' : 'Сохранить'}
                   </button>
                 </form>
               )}
