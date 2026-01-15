@@ -160,6 +160,18 @@ export default function AddItem() {
     setData({ ...data, name: event.target.value });
   };
 
+  const handleCategoryInputChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
+  };
+
   const handleCategoryChange = (event) => {
     setData({ ...data, category: event.target.value });
   };
@@ -259,14 +271,16 @@ export default function AddItem() {
     materialRef.current.click();
   }
 
-  const addSelectColor = (data) => {
-    event.preventDefault();
-    if (data.src === '' || data.color.length === 0) {
+  const addSelectColor = (colorData, event) => {
+    if (event) {
+      event.preventDefault();
+    }
+    if (colorData.src === '' || colorData.color.length === 0) {
       alert('Добавьте фото и цвет');
     } else {
       setData((prev) => ({
         ...prev,
-        color: [...prev.color, data],
+        color: [...prev.color, colorData],
       }));
       setShowNewDiv(true);
       setColorModal(false);
@@ -431,8 +445,10 @@ export default function AddItem() {
       id: newId?.id + 1,
     }));
   };
-  const onDeleteColor = (id) => {
-    event.preventDefault();
+  const onDeleteColor = (id, event) => {
+    if (event) {
+      event.preventDefault();
+    }
     if (confirm('Вы действительно хотите удалить цвет')) {
       const filtred = data.color.filter((item) => item.color !== id);
       setData((prev) => ({
@@ -502,7 +518,7 @@ export default function AddItem() {
                   cursor: 'pointer',
                 }}></div>
               <button
-                onClick={() => onDeleteColor(item.color)}
+                onClick={(event) => onDeleteColor(item.color, event)}
                 className="w-[35px] flex mt-[15px] text-[20px] font-bold bg-[#c5e500] cursor-pointer items-center justify-center h-[35px] border rounded-[50%]">
                 x
               </button>
@@ -638,7 +654,7 @@ export default function AddItem() {
           <Input
             placeholder="Категория"
             value={data.category}
-            onChange={handleCategoryChange}
+            onChange={handleCategoryInputChange}
             type="text"
             width="40%"
           />

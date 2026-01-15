@@ -1,6 +1,9 @@
 import React from 'react';
+import { getDownloadURL, ref as sRef, uploadBytes } from 'firebase/storage';
+import { v4 } from 'uuid';
 import styles from './Admin.module.scss';
 import { apiClient } from '../../utils/api';
+import { storage } from '../../../firebase';
 
 const emptyCategory = { name: '', slug: '', iconUrl: '' };
 const emptySubcategory = { name: '', slug: '', iconUrl: '' };
@@ -13,6 +16,16 @@ export default function AdminCategories() {
   const [editingCategoryId, setEditingCategoryId] = React.useState(null);
   const [editingSubcategoryId, setEditingSubcategoryId] = React.useState(null);
   const [linkSelections, setLinkSelections] = React.useState({});
+
+  const handleIconUpload = async (event, setForm, folder) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const imgRef = sRef(storage, `${folder}/${v4()}`);
+    const snapshot = await uploadBytes(imgRef, file);
+    const url = await getDownloadURL(snapshot.ref);
+    setForm((prev) => ({ ...prev, iconUrl: url }));
+    event.target.value = '';
+  };
 
   const fetchData = React.useCallback(async () => {
     const [categoriesResponse, subcategoriesResponse] = await Promise.all([
@@ -120,12 +133,17 @@ export default function AdminCategories() {
           />
           <input
             className={styles.adminInput}
-            placeholder="Иконка (URL)"
-            value={categoryForm.iconUrl}
-            onChange={(event) =>
-              setCategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
-            }
+            type="file"
+            accept="image/*"
+            onChange={(event) => handleIconUpload(event, setCategoryForm, 'category-icons')}
           />
+          {categoryForm.iconUrl && (
+            <img
+              className={styles.adminIconPreview}
+              src={categoryForm.iconUrl}
+              alt="preview"
+            />
+          )}
           <button className="button" type="submit">
             Добавить категорию
           </button>
@@ -178,12 +196,17 @@ export default function AdminCategories() {
                   />
                   <input
                     className={styles.adminInput}
-                    placeholder="Иконка (URL)"
-                    value={categoryForm.iconUrl}
-                    onChange={(event) =>
-                      setCategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
-                    }
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleIconUpload(event, setCategoryForm, 'category-icons')}
                   />
+                  {categoryForm.iconUrl && (
+                    <img
+                      className={styles.adminIconPreview}
+                      src={categoryForm.iconUrl}
+                      alt="preview"
+                    />
+                  )}
                   <button className="button" type="submit">
                     Сохранить
                   </button>
@@ -256,12 +279,17 @@ export default function AdminCategories() {
           />
           <input
             className={styles.adminInput}
-            placeholder="Иконка (URL)"
-            value={subcategoryForm.iconUrl}
-            onChange={(event) =>
-              setSubcategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
-            }
+            type="file"
+            accept="image/*"
+            onChange={(event) => handleIconUpload(event, setSubcategoryForm, 'subcategory-icons')}
           />
+          {subcategoryForm.iconUrl && (
+            <img
+              className={styles.adminIconPreview}
+              src={subcategoryForm.iconUrl}
+              alt="preview"
+            />
+          )}
           <button className="button" type="submit">
             Добавить подкатегорию
           </button>
@@ -316,12 +344,19 @@ export default function AdminCategories() {
                   />
                   <input
                     className={styles.adminInput}
-                    placeholder="Иконка (URL)"
-                    value={subcategoryForm.iconUrl}
+                    type="file"
+                    accept="image/*"
                     onChange={(event) =>
-                      setSubcategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
+                      handleIconUpload(event, setSubcategoryForm, 'subcategory-icons')
                     }
                   />
+                  {subcategoryForm.iconUrl && (
+                    <img
+                      className={styles.adminIconPreview}
+                      src={subcategoryForm.iconUrl}
+                      alt="preview"
+                    />
+                  )}
                   <button className="button" type="submit">
                     Сохранить
                   </button>
