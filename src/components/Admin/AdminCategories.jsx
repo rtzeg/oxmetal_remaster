@@ -2,8 +2,8 @@ import React from 'react';
 import styles from './Admin.module.scss';
 import { apiClient } from '../../utils/api';
 
-const emptyCategory = { name: '', slug: '' };
-const emptySubcategory = { name: '', slug: '' };
+const emptyCategory = { name: '', slug: '', iconUrl: '' };
+const emptySubcategory = { name: '', slug: '', iconUrl: '' };
 
 export default function AdminCategories() {
   const [categories, setCategories] = React.useState([]);
@@ -85,12 +85,20 @@ export default function AdminCategories() {
 
   const startEditCategory = (category) => {
     setEditingCategoryId(category.id);
-    setCategoryForm({ name: category.name || '', slug: category.slug || '' });
+    setCategoryForm({
+      name: category.name || '',
+      slug: category.slug || '',
+      iconUrl: category.iconUrl || '',
+    });
   };
 
   const startEditSubcategory = (subcategory) => {
     setEditingSubcategoryId(subcategory.id);
-    setSubcategoryForm({ name: subcategory.name || '', slug: subcategory.slug || '' });
+    setSubcategoryForm({
+      name: subcategory.name || '',
+      slug: subcategory.slug || '',
+      iconUrl: subcategory.iconUrl || '',
+    });
   };
 
   return (
@@ -110,6 +118,14 @@ export default function AdminCategories() {
             value={categoryForm.slug}
             onChange={(event) => setCategoryForm((prev) => ({ ...prev, slug: event.target.value }))}
           />
+          <input
+            className={styles.adminInput}
+            placeholder="Иконка (URL)"
+            value={categoryForm.iconUrl}
+            onChange={(event) =>
+              setCategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
+            }
+          />
           <button className="button" type="submit">
             Добавить категорию
           </button>
@@ -122,6 +138,9 @@ export default function AdminCategories() {
                 <div>
                   <strong>{category.name}</strong>
                   {category.slug && <span className={styles.adminMeta}>/{category.slug}</span>}
+                  {category.iconUrl && (
+                    <img className={styles.adminIconPreview} src={category.iconUrl} alt="icon" />
+                  )}
                 </div>
                 <div className={styles.adminActions}>
                   <button
@@ -155,6 +174,14 @@ export default function AdminCategories() {
                     value={categoryForm.slug}
                     onChange={(event) =>
                       setCategoryForm((prev) => ({ ...prev, slug: event.target.value }))
+                    }
+                  />
+                  <input
+                    className={styles.adminInput}
+                    placeholder="Иконка (URL)"
+                    value={categoryForm.iconUrl}
+                    onChange={(event) =>
+                      setCategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
                     }
                   />
                   <button className="button" type="submit">
@@ -227,6 +254,14 @@ export default function AdminCategories() {
               setSubcategoryForm((prev) => ({ ...prev, slug: event.target.value }))
             }
           />
+          <input
+            className={styles.adminInput}
+            placeholder="Иконка (URL)"
+            value={subcategoryForm.iconUrl}
+            onChange={(event) =>
+              setSubcategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
+            }
+          />
           <button className="button" type="submit">
             Добавить подкатегорию
           </button>
@@ -239,6 +274,9 @@ export default function AdminCategories() {
                 <div>
                   <strong>{subcategory.name}</strong>
                   {subcategory.slug && <span className={styles.adminMeta}>/{subcategory.slug}</span>}
+                  {subcategory.iconUrl && (
+                    <img className={styles.adminIconPreview} src={subcategory.iconUrl} alt="icon" />
+                  )}
                 </div>
                 <div className={styles.adminActions}>
                   <button
@@ -274,6 +312,14 @@ export default function AdminCategories() {
                     value={subcategoryForm.slug}
                     onChange={(event) =>
                       setSubcategoryForm((prev) => ({ ...prev, slug: event.target.value }))
+                    }
+                  />
+                  <input
+                    className={styles.adminInput}
+                    placeholder="Иконка (URL)"
+                    value={subcategoryForm.iconUrl}
+                    onChange={(event) =>
+                      setSubcategoryForm((prev) => ({ ...prev, iconUrl: event.target.value }))
                     }
                   />
                   <button className="button" type="submit">

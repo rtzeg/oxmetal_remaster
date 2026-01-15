@@ -221,6 +221,111 @@
   font-size: 14px;
 }
 
+.adminIconPreview {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  margin-left: 8px;
+}
+
+.adminRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.adminSelect {
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 220px;
+}
+
+.adminSublist {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adminSubItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.adminHint {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.formRow {
+  gap: 16px;
+}
+
+.adminInput {
+  width: var(--input-width, 100%);
+  border-bottom: 1px solid black;
+  font-size: 20px;
+  padding-top: 16px;
+  outline: none;
+  margin-top: 15px;
+}
+
+.adminSectionTitle {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 20px 0 12px;
+}
+
+.adminForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.adminList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.adminCard {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.adminCardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.adminActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.adminMeta {
+  margin-left: 8px;
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+}
+
 .adminRow {
   display: flex;
   gap: 12px;

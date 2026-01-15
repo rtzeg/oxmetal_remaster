@@ -73,6 +73,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 slug TEXT UNIQUE,
+                icon_url TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -84,6 +85,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 slug TEXT UNIQUE,
+                icon_url TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -127,6 +129,19 @@ def ensure_columns(connection: sqlite3.Connection) -> None:
         if column not in existing_columns:
             connection.execute(f"ALTER TABLE products ADD COLUMN {column} {column_type}")
     connection.commit()
+    ensure_taxonomy_columns(connection)
+
+
+def ensure_taxonomy_columns(connection: sqlite3.Connection) -> None:
+    category_columns = {row["name"] for row in connection.execute("PRAGMA table_info(categories)")}
+    if "icon_url" not in category_columns:
+        connection.execute("ALTER TABLE categories ADD COLUMN icon_url TEXT")
+    subcategory_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(subcategories)")
+    }
+    if "icon_url" not in subcategory_columns:
+        connection.execute("ALTER TABLE subcategories ADD COLUMN icon_url TEXT")
+    connection.commit()
 
 
 class Color(BaseModel):
@@ -161,33 +176,39 @@ class CategoryRecord(BaseModel):
     id: int
     name: str
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
     subcategories: list["SubcategoryRecord"] = []
 
 
 class CategoryCreate(BaseModel):
     name: str
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
 
 
 class SubcategoryRecord(BaseModel):
     id: int
     name: str
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
 
 
 class SubcategoryCreate(BaseModel):
     name: str
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
 
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
 
 
 class SubcategoryUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
+    iconUrl: Optional[str] = None
 
 
 class CategorySubcategoryLink(BaseModel):
@@ -196,6 +217,10 @@ class CategorySubcategoryLink(BaseModel):
 
 class ProductSubcategoryLink(BaseModel):
     product_id: int
+
+
+class ProductSubcategoriesUpdate(BaseModel):
+    subcategory_ids: list[int]
 
 
 class ProductBase(BaseModel):
@@ -396,11 +421,11 @@ def create_coating(payload: CoatingCreate) -> CoatingRecord:
 def list_categories() -> list[CategoryRecord]:
     with get_connection() as connection:
         categories = connection.execute(
-            "SELECT id, name, slug FROM categories ORDER BY name"
+            "SELECT id, name, slug, icon_url FROM categories ORDER BY name"
         ).fetchall()
         links = connection.execute(
             """
-            SELECT cs.category_id, s.id, s.name, s.slug
+            SELECT cs.category_id, s.id, s.name, s.slug, s.icon_url
             FROM category_subcategories cs
             JOIN subcategories s ON s.id = cs.subcategory_id
             ORDER BY s.name
@@ -409,13 +434,14 @@ def list_categories() -> list[CategoryRecord]:
     by_category: dict[int, list[SubcategoryRecord]] = {}
     for row in links:
         by_category.setdefault(row["category_id"], []).append(
-            SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+            SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], iconUrl=row["icon_url"])
         )
     return [
         CategoryRecord(
             id=row["id"],
             name=row["name"],
             slug=row["slug"],
+            iconUrl=row["icon_url"],
             subcategories=by_category.get(row["id"], []),
         )
         for row in categories
@@ -426,45 +452,59 @@ def list_categories() -> list[CategoryRecord]:
 def create_category(payload: CategoryCreate) -> CategoryRecord:
     with get_connection() as connection:
         cursor = connection.execute(
-            "INSERT INTO categories (name, slug) VALUES (?, ?)",
-            (payload.name, payload.slug),
+            "INSERT INTO categories (name, slug, icon_url) VALUES (?, ?, ?)",
+            (payload.name, payload.slug, payload.iconUrl),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, name, slug FROM categories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM categories WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
-    return CategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], subcategories=[])
+    return CategoryRecord(
+        id=row["id"],
+        name=row["name"],
+        slug=row["slug"],
+        iconUrl=row["icon_url"],
+        subcategories=[],
+    )
 
 
 @app.put("/categories/{category_id}", response_model=CategoryRecord)
 def update_category(category_id: int, payload: CategoryUpdate) -> CategoryRecord:
     data = payload.dict(exclude_unset=True)
+    if "iconUrl" in data:
+        data["icon_url"] = data.pop("iconUrl")
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
     with get_connection() as connection:
         row = connection.execute(
-            "SELECT id, name, slug FROM categories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM categories WHERE id = ?",
             (category_id,),
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Category not found")
-        updated = {"name": row["name"], "slug": row["slug"]}
+        updated = {"name": row["name"], "slug": row["slug"], "icon_url": row["icon_url"]}
         updated.update(data)
         connection.execute(
             """
             UPDATE categories
-            SET name = ?, slug = ?, updated_at = CURRENT_TIMESTAMP
+            SET name = ?, slug = ?, icon_url = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (updated["name"], updated["slug"], category_id),
+            (updated["name"], updated["slug"], updated["icon_url"], category_id),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, name, slug FROM categories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM categories WHERE id = ?",
             (category_id,),
         ).fetchone()
-    return CategoryRecord(id=row["id"], name=row["name"], slug=row["slug"], subcategories=[])
+    return CategoryRecord(
+        id=row["id"],
+        name=row["name"],
+        slug=row["slug"],
+        iconUrl=row["icon_url"],
+        subcategories=[],
+    )
 
 
 @app.delete("/categories/{category_id}", status_code=204)
@@ -483,54 +523,74 @@ def delete_category(category_id: int) -> None:
 def list_subcategories() -> list[SubcategoryRecord]:
     with get_connection() as connection:
         rows = connection.execute(
-            "SELECT id, name, slug FROM subcategories ORDER BY name"
+            "SELECT id, name, slug, icon_url FROM subcategories ORDER BY name"
         ).fetchall()
-    return [SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"]) for row in rows]
+    return [
+        SubcategoryRecord(
+            id=row["id"],
+            name=row["name"],
+            slug=row["slug"],
+            iconUrl=row["icon_url"],
+        )
+        for row in rows
+    ]
 
 
 @app.post("/subcategories", response_model=SubcategoryRecord, status_code=201)
 def create_subcategory(payload: SubcategoryCreate) -> SubcategoryRecord:
     with get_connection() as connection:
         cursor = connection.execute(
-            "INSERT INTO subcategories (name, slug) VALUES (?, ?)",
-            (payload.name, payload.slug),
+            "INSERT INTO subcategories (name, slug, icon_url) VALUES (?, ?, ?)",
+            (payload.name, payload.slug, payload.iconUrl),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM subcategories WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
-    return SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+    return SubcategoryRecord(
+        id=row["id"],
+        name=row["name"],
+        slug=row["slug"],
+        iconUrl=row["icon_url"],
+    )
 
 
 @app.put("/subcategories/{subcategory_id}", response_model=SubcategoryRecord)
 def update_subcategory(subcategory_id: int, payload: SubcategoryUpdate) -> SubcategoryRecord:
     data = payload.dict(exclude_unset=True)
+    if "iconUrl" in data:
+        data["icon_url"] = data.pop("iconUrl")
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
     with get_connection() as connection:
         row = connection.execute(
-            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM subcategories WHERE id = ?",
             (subcategory_id,),
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Subcategory not found")
-        updated = {"name": row["name"], "slug": row["slug"]}
+        updated = {"name": row["name"], "slug": row["slug"], "icon_url": row["icon_url"]}
         updated.update(data)
         connection.execute(
             """
             UPDATE subcategories
-            SET name = ?, slug = ?, updated_at = CURRENT_TIMESTAMP
+            SET name = ?, slug = ?, icon_url = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (updated["name"], updated["slug"], subcategory_id),
+            (updated["name"], updated["slug"], updated["icon_url"], subcategory_id),
         )
         connection.commit()
         row = connection.execute(
-            "SELECT id, name, slug FROM subcategories WHERE id = ?",
+            "SELECT id, name, slug, icon_url FROM subcategories WHERE id = ?",
             (subcategory_id,),
         ).fetchone()
-    return SubcategoryRecord(id=row["id"], name=row["name"], slug=row["slug"])
+    return SubcategoryRecord(
+        id=row["id"],
+        name=row["name"],
+        slug=row["slug"],
+        iconUrl=row["icon_url"],
+    )
 
 
 @app.delete("/subcategories/{subcategory_id}", status_code=204)
@@ -611,6 +671,50 @@ def list_products_by_subcategory(subcategory_id: int) -> list[Product]:
             (subcategory_id,),
         ).fetchall()
     return [row_to_product(row) for row in rows]
+
+
+@app.get("/products/{product_id}/subcategories", response_model=list[SubcategoryRecord])
+def list_subcategories_by_product(product_id: int) -> list[SubcategoryRecord]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT s.id, s.name, s.slug, s.icon_url
+            FROM subcategories s
+            JOIN product_subcategories ps ON ps.subcategory_id = s.id
+            WHERE ps.product_id = ?
+            ORDER BY s.name
+            """,
+            (product_id,),
+        ).fetchall()
+    return [
+        SubcategoryRecord(
+            id=row["id"],
+            name=row["name"],
+            slug=row["slug"],
+            iconUrl=row["icon_url"],
+        )
+        for row in rows
+    ]
+
+
+@app.put("/products/{product_id}/subcategories", status_code=204)
+def replace_product_subcategories(
+    product_id: int, payload: ProductSubcategoriesUpdate
+) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            "DELETE FROM product_subcategories WHERE product_id = ?",
+            (product_id,),
+        )
+        for subcategory_id in payload.subcategory_ids:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO product_subcategories (product_id, subcategory_id)
+                VALUES (?, ?)
+                """,
+                (product_id, subcategory_id),
+            )
+        connection.commit()
 
 
 @app.post("/products", response_model=Product, status_code=201, response_model_by_alias=True)

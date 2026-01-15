@@ -25,6 +25,8 @@ export default function AddItem() {
   const goods = useSelector((state) => state.goods.data);
   const colors = useSelector((state) => state.colors.colors);
   const coating = useSelector((state) => state.coating.coating);
+  const [subcategories, setSubcategories] = React.useState([]);
+  const [selectedSubcategories, setSelectedSubcategories] = React.useState([]);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -107,6 +109,23 @@ export default function AddItem() {
     }
   }, [goods, productId]);
 
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      const { data } = await apiClient.get('/subcategories');
+      setSubcategories(data || []);
+    };
+    loadSubcategories();
+  }, []);
+
+  useEffect(() => {
+    const loadProductSubcategories = async () => {
+      if (!productId) return;
+      const { data } = await apiClient.get(`/products/${productId}/subcategories`);
+      setSelectedSubcategories((data || []).map((item) => item.id));
+    };
+    loadProductSubcategories();
+  }, [productId]);
+
   // onChange для материал
   const handleMaterialChange = (event) => {
     setData({ ...data, material: event.target.value });
@@ -139,6 +158,18 @@ export default function AddItem() {
 
   const handleNameChange = (event) => {
     setData({ ...data, name: event.target.value });
+  };
+
+  const handleCategoryChange = (event) => {
+    setData({ ...data, category: event.target.value });
+  };
+
+  const handleProfileChange = (event) => {
+    setData({ ...data, profile: event.target.value });
+  };
+
+  const handleThicknessChange = (event) => {
+    setData({ ...data, thickness: event.target.value });
   };
 
   const handleCategoryChange = (event) => {
@@ -346,6 +377,9 @@ export default function AddItem() {
       const payload = { ...data };
       delete payload.key;
       await apiClient.put(`/products/${currentId}`, payload);
+      await apiClient.put(`/products/${currentId}/subcategories`, {
+        subcategory_ids: selectedSubcategories,
+      });
       alert('Изменено');
 
       navigate('/admin/control');
@@ -369,7 +403,13 @@ export default function AddItem() {
     try {
       const payload = { ...data };
       delete payload.key;
-      await apiClient.post('/products', payload);
+      const response = await apiClient.post('/products', payload);
+      const createdId = response?.data?.id;
+      if (createdId) {
+        await apiClient.put(`/products/${createdId}/subcategories`, {
+          subcategory_ids: selectedSubcategories,
+        });
+      }
       alert('Добавлено');
 
       navigate('/admin/control');
@@ -400,6 +440,12 @@ export default function AddItem() {
         color: filtred,
       }));
     }
+  };
+
+  const toggleSubcategory = (id) => {
+    setSelectedSubcategories((prev) =>
+      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
+    );
   };
   // console.log(newArray);
   // console.log(productKey);
@@ -614,6 +660,22 @@ export default function AddItem() {
             type="text"
             width="40%"
           />
+        </div>
+
+        <div className={`${styles.formRow} flex flex-col mt-[25px]`}>
+          <p className="opacity-[60%] text-[16px]">Подкатегории</p>
+          <div className="flex flex-wrap gap-3">
+            {subcategories.map((subcategory) => (
+              <label key={subcategory.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSubcategories.includes(subcategory.id)}
+                  onChange={() => toggleSubcategory(subcategory.id)}
+                />
+                <span>{subcategory.name}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className={`${styles.formRow} flex items-center py-2`}>
