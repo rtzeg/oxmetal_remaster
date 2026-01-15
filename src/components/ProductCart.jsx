@@ -3,6 +3,7 @@
 import React, { useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../contexts/Modal';
+import { resolveImageUrl } from '../utils/image';
 
 const ProductCart = ({ Product, idx }) => {
   // eslint-disable-next-line react/prop-types
@@ -29,7 +30,7 @@ const ProductCart = ({ Product, idx }) => {
   const colorIndex =
     idx == undefined || idx == -1 ? Math.floor(Math.random() * colorList.length) : idx;
   const selectedColor = colorList[colorIndex];
-  const productImage = selectedColor?.src || fallbackImage;
+  const productImage = resolveImageUrl(selectedColor?.src || fallbackImage);
 
 
   return (
