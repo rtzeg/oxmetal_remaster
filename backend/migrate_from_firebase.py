@@ -184,8 +184,13 @@ def download_asset(
         return None
     if resolved_url in cache:
         return cache[resolved_url]
-    response = session.get(resolved_url, timeout=60)
-    response.raise_for_status()
+    try:
+        response = session.get(resolved_url, timeout=60)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"Failed to download asset: {resolved_url} ({exc})")
+        cache[resolved_url] = None
+        return None
     content_type = response.headers.get("content-type", "")
     suffix = Path(urlparse(resolved_url).path).suffix
     if not suffix and "image" in content_type:
