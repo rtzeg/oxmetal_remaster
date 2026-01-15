@@ -10,10 +10,11 @@ import Loading from "../components/Loading";
 import { sendmessage } from "../../utils/sendTgBot";
 import { checkCookie } from "../../utils/functions";
 import { AuthCTX } from "../contexts/Auth";
+import { goodsToArray } from "../utils/goods";
 
 const Layout = () => {
   const goods = useSelector((state) => state.goods.data);
-  const newArr = Object.values(goods)
+  const newArr = goodsToArray(goods);
   const Load = useSelector((state) => state.goods.status);
   const [OpenModal, setOpenModal] = useState(false);
   const [CheckForm, setCheckForm] = useState(false);
