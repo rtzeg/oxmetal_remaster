@@ -156,17 +156,29 @@ def normalize_color_item(item: Any, palette: dict[str, dict[str, Any]]) -> dict[
     return {"RGBA": None, "color": None, "name": None, "src": None}
 
 
+def normalize_taxonomy_name(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = " ".join(str(value).strip().split())
+    return normalized or None
+
+
 def get_or_create_category(
     connection: sqlite3.Connection, name: str, icon_url: str | None = None
 ) -> int:
+    normalized_name = normalize_taxonomy_name(name)
+    if not normalized_name:
+        return 0
     connection.execute(
         """
         INSERT OR IGNORE INTO categories (name, icon_url)
         VALUES (?, ?)
         """,
-        (name, icon_url),
+        (normalized_name, icon_url),
     )
-    row = connection.execute("SELECT id, icon_url FROM categories WHERE name = ?", (name,)).fetchone()
+    row = connection.execute(
+        "SELECT id, icon_url FROM categories WHERE name = ?", (normalized_name,)
+    ).fetchone()
     if row and icon_url and not row["icon_url"]:
         connection.execute(
             "UPDATE categories SET icon_url = ? WHERE id = ?",
@@ -178,15 +190,18 @@ def get_or_create_category(
 def get_or_create_subcategory(
     connection: sqlite3.Connection, name: str, icon_url: str | None = None
 ) -> int:
+    normalized_name = normalize_taxonomy_name(name)
+    if not normalized_name:
+        return 0
     connection.execute(
         """
         INSERT OR IGNORE INTO subcategories (name, icon_url)
         VALUES (?, ?)
         """,
-        (name, icon_url),
+        (normalized_name, icon_url),
     )
     row = connection.execute(
-        "SELECT id, icon_url FROM subcategories WHERE name = ?", (name,)
+        "SELECT id, icon_url FROM subcategories WHERE name = ?", (normalized_name,)
     ).fetchone()
     if row and icon_url and not row["icon_url"]:
         connection.execute(
@@ -346,8 +361,8 @@ def migrate_products(
             current_product_id = cursor.lastrowid
         category_name = product.get("view") or product.get("category")
         subcategory_name = product.get("material")
-        category_icon = product.get("viewImg")
-        subcategory_icon = product.get("materialImg")
+        category_icon = product.get("viewImg") or product.get("view_img")
+        subcategory_icon = product.get("materialImg") or product.get("material_img")
         if category_name:
             category_id = get_or_create_category(connection, str(category_name), category_icon)
         else:
