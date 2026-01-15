@@ -1,9 +1,9 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"; 
-import axios from "axios";
+import { apiClient } from "../utils/api";
 
 
 export const fetchColors = createAsyncThunk('getGoodAPI/colors', async()=>{
-  const {data} = await axios.get("https://oxmetal-49832-default-rtdb.asia-southeast1.firebasedatabase.app/Colors.json");
+  const {data} = await apiClient.get("/colors");
   return data;
 })
 
