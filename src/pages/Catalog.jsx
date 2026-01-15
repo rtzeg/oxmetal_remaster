@@ -8,6 +8,8 @@ import React, {
 import { useSelector } from "react-redux";
 import ProductCart from "../components/ProductCart";
 import { scrollToElement } from "../../utils/functions";
+import { apiClient } from "../utils/api";
+import { useSearchParams } from "react-router-dom";
 
 const norm = (v) => String(v ?? "").trim().toLowerCase();
 
@@ -122,7 +124,13 @@ function OptionBtn({ active, disabled, onClick, children, right }) {
 
 export default function Catalog() {
   const goods = useSelector((state) => state.goods.data);
-  const products = useMemo(() => asArray(goods), [goods]);
+  const [searchParams] = useSearchParams();
+  const [subcategoryProducts, setSubcategoryProducts] = useState(null);
+  const subcategoryId = searchParams.get("subcategory");
+  const products = useMemo(() => {
+    if (subcategoryProducts) return subcategoryProducts;
+    return asArray(goods);
+  }, [goods, subcategoryProducts]);
 
   const [filters, setFilters] = useState({
     material: "all",
@@ -159,6 +167,18 @@ export default function Catalog() {
       localStorage.removeItem("fillGoodProfile");
     }
   }, [setFilter]);
+
+  useEffect(() => {
+    const loadSubcategory = async () => {
+      if (!subcategoryId) {
+        setSubcategoryProducts(null);
+        return;
+      }
+      const { data } = await apiClient.get(`/subcategories/${subcategoryId}/products`);
+      setSubcategoryProducts(data || []);
+    };
+    loadSubcategory();
+  }, [subcategoryId]);
 
   // 1) сначала поиск
   const searchedProducts = useMemo(() => {
