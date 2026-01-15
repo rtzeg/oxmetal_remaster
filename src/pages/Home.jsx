@@ -8,22 +8,19 @@ import "swiper/css/free-mode";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 import { FreeMode, Pagination, Navigation } from "swiper/modules";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import PhoneInput from "react-phone-input-2";
 
 import { sendmessage } from "../../utils/sendTgBot";
 import { checkCookie, scrollToElement } from "../../utils/functions";
+import { goodsToArray } from "../utils/goods";
+import { apiClient } from "../utils/api";
 
 const Home = () => {
   const goods = useSelector((state) => state.goods.data);
 
   // SAFE goods -> array
-  const newArr = useMemo(() => {
-    if (!goods) return [];
-    if (Array.isArray(goods)) return goods.filter(Boolean);
-    if (typeof goods === "object") return Object.values(goods).filter(Boolean);
-    return [];
-  }, [goods]);
+  const newArr = useMemo(() => goodsToArray(goods), [goods]);
 
   // стабильный цвет вместо Math.random()
   const getStableColorIdx = useCallback((product, fallbackIdx = 0) => {
@@ -38,49 +35,20 @@ const Home = () => {
     return hash % len;
   }, []);
 
-  // Категории/материалы (SelectArr)
-  const selectArr = useMemo(() => {
-    const byView = new Map();
-
-    for (const item of newArr) {
-      if (!item) continue;
-
-      const view = String(item.view ?? "").trim();
-      if (!view) continue;
-
-      const key = view.toLowerCase();
-      const viewImg = String(item.viewImg ?? "").trim();
-
-      if (!byView.has(key)) {
-        byView.set(key, { type: view, img: viewImg || "", arr: [] });
-      }
-
-      const entry = byView.get(key);
-
-      if (!entry.img && viewImg) entry.img = viewImg;
-
-      const materialName = String(item.material ?? "").trim();
-      if (!materialName) continue;
-
-      const exists = entry.arr.some(
-        (m) => String(m.name ?? "").trim().toLowerCase() === materialName.toLowerCase()
-      );
-
-      if (!exists) {
-        entry.arr.push({
-          icon: String(item.materialImg ?? "").trim(),
-          name: item.material,
-        });
-      }
-    }
-
-    return Array.from(byView.values()).filter((x) => x.img !== "");
-  }, [newArr]);
-
   const [selectIdx, setSelectIdx] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const navigate = useNavigate();
   useEffect(() => {
-    if (selectIdx >= selectArr.length) setSelectIdx(0);
-  }, [selectIdx, selectArr.length]);
+    if (selectIdx >= categories.length) setSelectIdx(0);
+  }, [selectIdx, categories.length]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await apiClient.get("/categories");
+      setCategories(data || []);
+    };
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     scrollToElement("main_page_preview");
@@ -190,7 +158,7 @@ const Home = () => {
   );
   const marquee = useMemo(() => [...partners, ...partners], [partners]);
 
-  const currentSelect = selectArr[selectIdx];
+  const currentSelect = categories[selectIdx];
 
   return (
     <>
@@ -299,18 +267,18 @@ const Home = () => {
         <div className="ProductsCreate">
           <div className="ProductsCreateSelects">
             <div className="MainSelectsCreate">
-              {selectArr.length > 0
-                ? selectArr.map((item, idx) => (
-                  <div className="MainSelects" onClick={() => setSelectIdx(idx)} key={item.type + idx}>
+              {categories.length > 0
+                ? categories.map((item, idx) => (
+                  <div className="MainSelects" onClick={() => setSelectIdx(idx)} key={item.name + idx}>
                     <div className="SelectsImg">
                       <img
                         className={selectIdx === idx ? "SelectsImgBg SelectsImgBgActive" : "SelectsImgBg"}
                         src="/icons/Star 7.svg"
                         alt=""
                       />
-                      <img className="SelectsImgIcon" src={item.img} alt="" />
+                      {item.iconUrl && <img className="SelectsImgIcon" src={item.iconUrl} alt="" />}
                     </div>
-                    <p>{item.type}</p>
+                    <p>{item.name}</p>
                   </div>
                 ))
                 : null}
@@ -319,17 +287,16 @@ const Home = () => {
 
           <div className="ProductsCreateOptions">
             {currentSelect
-              ? currentSelect.arr.map((item, idx) => (
-                <Link
-                  to="/catalog"
-                  onClick={() => localStorage.setItem("fillGood", item.name)}
+              ? currentSelect.subcategories?.map((item, idx) => (
+                <button
+                  type="button"
+                  className="ProductsCreateOptionsElem"
+                  onClick={() => navigate(`/catalog?subcategory=${item.id}`)}
                   key={item.name + idx}
                 >
-                  <div className="ProductsCreateOptionsElem">
-                    <img src={item.icon} alt="" />
-                    <p>{item.name}</p>
-                  </div>
-                </Link>
+                  {item.iconUrl && <img src={item.iconUrl} alt="" />}
+                  <p>{item.name}</p>
+                </button>
               ))
               : null}
           </div>
