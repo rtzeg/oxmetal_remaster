@@ -3,6 +3,7 @@
 import React, { useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../contexts/Modal';
+import { resolveImageUrl } from '../utils/image';
 
 const ProductCart = ({ Product, idx }) => {
   // eslint-disable-next-line react/prop-types
